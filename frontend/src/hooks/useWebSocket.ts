@@ -8,15 +8,20 @@ interface UseWebSocketOptions {
 }
 
 const getWebSocketUrl = () => {
+    if (import.meta.env.VITE_WS_URL) {
+        return import.meta.env.VITE_WS_URL;
+    }
+
     if (typeof window === 'undefined') {
         return 'ws://localhost:5000/ws';
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '5000';
-    const host = isLocalFrontend ? 'localhost:5000' : window.location.host;
+    const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    if (isLocalFrontend) {
+        return 'ws://localhost:5000/ws';
+    }
 
-    return `${protocol}//${host}/ws`;
+    return 'wss://trading-platform-62oa.onrender.com/ws';
 };
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {

@@ -1,7 +1,8 @@
 import axios from 'axios';
 import type { StockQuote, HistoricalDataPoint, SearchResult } from '../types/stock';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const PROD_API_BASE_URL = 'https://trading-platform-62oa.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || PROD_API_BASE_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
