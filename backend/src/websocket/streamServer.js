@@ -1,9 +1,10 @@
-const WebSocket = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const yfinanceService = require('../services/yfinanceService');
 
 class WebSocketStreamServer {
-    constructor(port) {
-        this.port = port;
+    constructor(server, path = '/ws') {
+        this.server = server;
+        this.path = path;
         this.wss = null;
         this.subscriptions = new Map();
         this.clientSubscriptions = new Map();
@@ -12,8 +13,11 @@ class WebSocketStreamServer {
     }
 
     start() {
-        this.wss = new WebSocket.Server({ port: this.port });
-        console.log(`WebSocket running on ws://localhost:${this.port}`);
+        this.wss = new WebSocketServer({
+            server: this.server,
+            path: this.path,
+        });
+        console.log(`WebSocket running on ${this.path}`);
 
         this.startPolling();
 

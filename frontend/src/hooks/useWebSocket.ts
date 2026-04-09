@@ -7,7 +7,17 @@ interface UseWebSocketOptions {
     onDisconnected?: () => void;
 }
 
-const WS_URL = 'ws://localhost:5001';
+const getWebSocketUrl = () => {
+    if (typeof window === 'undefined') {
+        return 'ws://localhost:5000/ws';
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '5000';
+    const host = isLocalFrontend ? 'localhost:5000' : window.location.host;
+
+    return `${protocol}//${host}/ws`;
+};
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const [isConnected, setIsConnected] = useState(false);
@@ -24,7 +34,7 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
         let isUnmounted = false;
 
         const connect = () => {
-            const ws = new WebSocket(WS_URL);
+            const ws = new WebSocket(getWebSocketUrl());
             wsRef.current = ws;
 
             ws.onopen = () => {
