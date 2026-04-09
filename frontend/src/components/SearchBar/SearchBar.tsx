@@ -6,6 +6,7 @@ import type { SearchResult } from '../../types/stock';
 interface SearchBarProps {
     activeListName: string;
     onSelectResult: (result: SearchResult) => void;
+    disabled?: boolean;
 }
 
 const categoryMeta: Record<SearchResult['category'], { label: string; className: string; icon: React.ReactNode }> = {
@@ -31,7 +32,7 @@ const categoryMeta: Record<SearchResult['category'], { label: string; className:
     },
 };
 
-const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, disabled = false }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [debouncedTerm, setDebouncedTerm] = useState('');
@@ -76,6 +77,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult })
     const totalResults = filteredResults.length;
 
     const handleSelect = (result: SearchResult) => {
+        if (disabled) {
+            return;
+        }
+
         onSelectResult(result);
         setSearchTerm('');
         setDebouncedTerm('');
@@ -101,13 +106,19 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult })
                         {filterOptions.map((option) => (
                             <button
                                 key={option.id}
+                                type="button"
                                 onClick={() => {
+                                    if (disabled) {
+                                        return;
+                                    }
+
                                     setSelectedFilter(option.id);
                                     if (searchTerm.trim().length >= 2) {
                                         setIsOpen(true);
                                     }
                                 }}
-                                className={`cursor-pointer px-3 py-1.5 rounded-full text-xs transition-colors ${selectedFilter === option.id ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                                disabled={disabled}
+                                className={`cursor-pointer px-3 py-1.5 rounded-full text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${selectedFilter === option.id ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
                             >
                                 {option.label}
                             </button>
@@ -121,12 +132,25 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult })
                         type="text"
                         value={searchTerm}
                         onChange={(event) => {
+                            if (disabled) {
+                                return;
+                            }
+
                             setSearchTerm(event.target.value);
                             setIsOpen(true);
                         }}
-                        onFocus={() => setIsOpen(true)}
-                        placeholder={`Search ${selectedFilter === 'all' ? 'stocks, mutual funds, SIPs, and indices' : filterOptions.find((option) => option.id === selectedFilter)?.label.toLowerCase()}`}
-                        className="w-full pl-12 pr-4 py-4 bg-transparent focus:outline-none text-gray-100 placeholder-gray-500 text-lg transition-all duration-200"
+                        onFocus={() => {
+                            if (!disabled) {
+                                setIsOpen(true);
+                            }
+                        }}
+                        disabled={disabled}
+                        placeholder={
+                            disabled
+                                ? 'Create a list to start searching'
+                                : `Search ${selectedFilter === 'all' ? 'stocks, mutual funds, SIPs, and indices' : filterOptions.find((option) => option.id === selectedFilter)?.label.toLowerCase()}`
+                        }
+                        className="w-full pl-12 pr-4 py-4 bg-transparent focus:outline-none text-gray-100 placeholder-gray-500 text-lg transition-all duration-200 disabled:cursor-not-allowed disabled:text-gray-500"
                     />
                     {isLoading && (
                         <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-500 w-5 h-5 animate-spin" />
@@ -134,7 +158,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult })
                 </div>
             </div>
 
-            {isOpen && searchTerm.trim().length >= 2 && (
+            {isOpen && !disabled && searchTerm.trim().length >= 2 && (
                 <div className="absolute z-50 w-full mt-2 bg-gray-800/95 backdrop-blur-md border border-gray-700 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
                     {error && (
                         <div className="p-6 text-center text-red-400">

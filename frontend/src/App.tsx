@@ -37,10 +37,13 @@ const App: React.FC = () => {
 
         try {
             const quote = await fetchStock(result.symbol);
-            queryClient.setQueryData<StockQuote[]>(['listStocks', activeList.id, [...activeList.symbols, result.symbol.toUpperCase()]], (current = []) => {
-                const withoutExisting = current.filter((item) => item.symbol !== quote.symbol);
-                return [...withoutExisting, quote];
-            });
+            queryClient.setQueryData<StockQuote[]>(
+                ['listStocks', activeList.id, [...activeList.symbols, result.symbol.toUpperCase()]],
+                (current = []) => {
+                    const withoutExisting = current.filter((item) => item.symbol !== quote.symbol);
+                    return [...withoutExisting, quote];
+                }
+            );
         } catch {
             queryClient.invalidateQueries({ queryKey: ['listStocks', activeList.id] });
         }
@@ -93,7 +96,11 @@ const App: React.FC = () => {
 
             <section id="search-section" className="px-4 pb-8">
                 <div className="container mx-auto">
-                    <SearchBar activeListName={activeList?.name ?? 'Create a list first'} onSelectResult={handleAddResult} />
+                    <SearchBar
+                        activeListName={activeList?.name ?? 'Create a list first'}
+                        onSelectResult={handleAddResult}
+                        disabled={!activeList}
+                    />
                 </div>
             </section>
 
@@ -105,7 +112,7 @@ const App: React.FC = () => {
             <footer className="border-t border-gray-800 mt-16 py-8 px-4">
                 <div className="container mx-auto text-center text-gray-500 text-sm">
                     <p>Data is pulled from Yahoo Finance endpoints for live quotes, indices, and search results.</p>
-                    <p className="mt-1">© 2026 StockTracker</p>
+                    <p className="mt-1">(c) 2026 StockTracker</p>
                 </div>
             </footer>
         </div>

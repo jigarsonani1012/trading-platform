@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getWebSocketUrl } from '../config';
 import type { StockQuote } from '../types/stock';
 
 interface UseWebSocketOptions {
@@ -6,23 +7,6 @@ interface UseWebSocketOptions {
     onConnected?: () => void;
     onDisconnected?: () => void;
 }
-
-const getWebSocketUrl = () => {
-    if (import.meta.env.VITE_WS_URL) {
-        return import.meta.env.VITE_WS_URL;
-    }
-
-    if (typeof window === 'undefined') {
-        return 'ws://localhost:5000/ws';
-    }
-
-    const isLocalFrontend = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (isLocalFrontend) {
-        return 'ws://localhost:5000/ws';
-    }
-
-    return 'wss://trading-platform-62oa.onrender.com/ws';
-};
 
 export const useWebSocket = (options: UseWebSocketOptions = {}) => {
     const [isConnected, setIsConnected] = useState(false);
