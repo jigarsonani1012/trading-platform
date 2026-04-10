@@ -257,6 +257,13 @@ export const useActiveListStocks = () => {
         enabled: !!activeList && activeList.symbols.length > 0,
         staleTime: 20000,
         refetchInterval: 20000,
-        placeholderData: (previousData) => previousData,
+        // Only show placeholder data if it's for the same list (same query key)
+        placeholderData: (previousData, previousQuery) => {
+            // Only return previous data if the query key matches (same list)
+            if (previousQuery && previousQuery.queryKey[1] === activeList?.id) {
+                return previousData;
+            }
+            return undefined;
+        },
     });
 };
