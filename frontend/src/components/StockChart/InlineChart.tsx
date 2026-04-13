@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, Time } from 'lightweight-charts';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useHistoricalData } from '../../hooks/useStockData';
@@ -14,7 +14,10 @@ interface InlineChartProps {
 const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period = '1mo', onChartClick }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
-    const { data: historicalData, isLoading, error } = useHistoricalData(symbol, period, '1d');
+    const [isDragging, setIsDragging] = useState(false);
+    // Determine interval: 1d uses 1-minute candles, others use daily candles
+    const interval = ['1d', '1w'].includes(period) ? '1m' : '1d';
+    const { data: historicalData, isLoading, error } = useHistoricalData(symbol, period, interval);
 
     useEffect(() => {
         if (!chartContainerRef.current || !historicalData?.length || isLoading) return;
@@ -29,29 +32,46 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
 
             const width = container.clientWidth;
             if (!width || width <= 0) return;
-            
+
             try {
                 const chart = createChart(container, {
                     layout: {
-                        background: { type: ColorType.Solid, color: '#0F172A' },
+                        background: { color: '#0F172A' },
                         textColor: '#94A3B8',
                         fontSize: 11,
                     },
+
                     width,
                     height,
+
+                    handleScroll: {
+                        mouseWheel: true,
+                        pressedMouseMove: true,
+                        horzTouchDrag: true,
+                        vertTouchDrag: true,
+                    },
+
+                    handleScale: {
+                        axisPressedMouseMove: true,
+                        mouseWheel: true,
+                        pinch: true,
+                    },
+
                     timeScale: {
-                        timeVisible: false,
+                        timeVisible: true,
                         secondsVisible: false,
                     },
+
                     rightPriceScale: {
-                        textColor: '#94A3B8',
                         borderColor: '#1E293B',
                     },
+
                     crosshair: {
                         mode: 1,
-                        vertLine: { color: '#334155', width: 1, style: 1 },
-                        horzLine: { color: '#334155', width: 1, style: 1 },
+                        vertLine: { color: '#334155', width: 1 },
+                        horzLine: { color: '#334155', width: 1 },
                     },
+
                     grid: {
                         horzLines: { color: '#1E293B' },
                         vertLines: { color: '#1E293B' },
@@ -68,10 +88,15 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
                 });
 
                 const chartData = historicalData.map((point) => {
-                    const timeValue = typeof point.time === 'number' 
+                    let timeValue = typeof point.time === 'number'
                         ? Math.floor(point.time)
                         : Math.floor(new Date(String(point.time)).getTime() / 1000);
-                    
+
+                    // Adjust timestamp to IST (UTC+05:30) by adding 5.5 hours
+                    // This makes the chart display times in IST
+                    const istOffset = 5.5 * 60 * 60; // 5.5 hours in seconds
+                    timeValue = timeValue + istOffset;
+
                     return {
                         time: timeValue as unknown as Time,
                         open: point.open,
@@ -109,7 +134,7 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
         };
 
         const timeoutId = setTimeout(() => initializeChart(), 50);
-        
+
         return () => {
             clearTimeout(timeoutId);
             if (chartRef.current) {
@@ -120,7 +145,7 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
     }, [historicalData, symbol, height, isLoading]);
 
     return (
-        <div 
+        <div
             className="relative w-full rounded-lg overflow-hidden bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors"
             onClick={onChartClick}
             role="button"
@@ -147,9 +172,17 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
             <div
                 ref={chartContainerRef}
                 className="w-full"
-                style={{ height: `${height}px`, opacity: isLoading ? 0.5 : 1 }}
+                style={{
+                    height: `${height}px`,
+                    opacity: isLoading ? 0.5 : 1,
+                    cursor: isDragging ? 'grabbing' : 'crosshair',
+                }}
+                onPointerDown={() => setIsDragging(true)}
+                onPointerUp={() => setIsDragging(false)}
+                onPointerLeave={() => setIsDragging(false)}
+                onPointerCancel={() => setIsDragging(false)}
             />
-            
+
             {/* Fullscreen overlay hint */}
             {!isLoading && historicalData?.length && (
                 <div className="absolute top-3 right-3 opacity-0 hover:opacity-100 transition-opacity z-20">

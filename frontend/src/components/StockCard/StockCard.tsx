@@ -47,11 +47,19 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
     if (viewMode === 'list') {
         return (
             <div className="stock-card px-4 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2.1fr)_1fr_0.9fr_1.1fr_44px_44px] items-center gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2.1fr)_1fr_0.9fr_1.1fr_44px] items-center gap-4">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                             <h3 className="text-lg font-bold text-gray-100">{stock.symbol}</h3>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">{exchangeLabel}</span>
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/20 transition-colors"
+                        title="View full chart"
+                    >
+                        <LineChartIcon className="w-4 h-4 text-blue-400" />
+                        <span className="cursor-pointer text-xs text-blue-400">View Chart</span>
+                    </button>
                         </div>
                         <p className="text-sm text-gray-400 truncate">{stock.company_name}</p>
                     </div>
@@ -77,17 +85,10 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
                         <div className="text-xs text-gray-500 mt-1">{new Date(stock.timestamp).toLocaleTimeString()}</div>
                     </div>
 
-                    <button
-                        onClick={() => setShowModal(true)}
-                        className="p-2 rounded-lg hover:bg-blue-500/20 transition-colors"
-                        title="View full chart"
-                    >
-                        <LineChartIcon className="w-4 h-4 text-blue-400" />
-                    </button>
 
                     <button
                         onClick={() => onRemove(stock.symbol)}
-                        className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
+                        className="cursor-pointer p-2 rounded-lg hover:bg-red-500/20 transition-colors flex justify-center"
                         title="Remove from this list"
                     >
                         <X className="w-4 h-4 text-gray-400 hover:text-red-400" />
@@ -116,20 +117,21 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-xl font-bold text-gray-100">{stock.symbol}</h3>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">{exchangeLabel}</span>
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/20 transition-colors"
+                        title="View full chart"
+                    >
+                        <LineChartIcon className="w-4 h-4 text-blue-400" />
+                        <span className="cursor-pointer text-xs text-blue-400">View Chart</span>
+                    </button>
                     </div>
                     <p className="text-sm text-gray-400 truncate">{stock.company_name}</p>
                 </div>
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={() => setShowModal(true)}
-                        className="p-2 rounded-lg hover:bg-blue-500/20 transition-colors"
-                        title="View full chart"
-                    >
-                        <LineChartIcon className="w-4 h-4 text-blue-400" />
-                    </button>
-                    <button
                         onClick={() => onRemove(stock.symbol)}
-                        className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
+                        className="cursor-pointer p-2 rounded-lg hover:bg-red-500/20 transition-colors"
                         title="Remove from this list"
                     >
                         <X className="w-4 h-4 text-gray-400 hover:text-red-400" />
@@ -185,14 +187,14 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
             )}
 
             {/* Toggle inline chart button */}
-            {!showChart && (
+            {/* {!showChart && (
                 <button
                     onClick={() => setShowChart(true)}
                     className="mb-4 w-full py-2 px-3 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg text-sm transition-colors"
                 >
                     Show Inline Chart
                 </button>
-            )}
+            )} */}
 
             {showChart && (
                 <button

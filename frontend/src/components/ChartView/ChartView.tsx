@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import StockChart from '../StockChart/StockChart';
 import SearchBar from '../SearchBar/SearchBar';
 import { ArrowLeft, BarChart3 } from 'lucide-react';
 import type { SearchResult } from '../../types/stock';
+import StockChartWrapper from '../StockChart/StockChartWrapper';
 
 interface ChartViewProps {
     initialSymbol?: string;
@@ -42,7 +42,7 @@ const ChartView: React.FC<ChartViewProps> = ({ initialSymbol, onBack }) => {
 
                 {/* Chart */}
                 {currentSymbol ? (
-                    <StockChart symbol={currentSymbol} isExpanded />
+                    <StockChartWrapper symbol={currentSymbol} isExpanded />
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 gap-6 h-150">
                         <div className="skeleton-chart h-96 w-full max-w-2xl bg-linear-to-r from-gray-700/50 via-gray-600/50 to-gray-700/50 rounded-2xl animate-pulse"></div>
