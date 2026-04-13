@@ -20,7 +20,7 @@ export interface StockQuote {
 }
 
 export interface HistoricalDataPoint {
-    time: string;
+    time: number;
     open: number;
     high: number;
     low: number;

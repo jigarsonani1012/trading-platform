@@ -47,4 +47,60 @@ const getMultipleStocks = async (req, res) => {
     }
 };
 
-module.exports = { getStock, getHistoricalData, searchStocks, getMultipleStocks };
+const getChartData = async (req, res) => {
+    try {
+        const { symbol } = req.params;
+        const { range = '1mo', interval = '1d' } = req.query;
+        
+        // Validate parameters
+        const validRanges = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'max'];
+        const validIntervals = ['1m', '5m', '15m', '30m', '60m', '1d', '1wk', '1mo'];
+        
+        if (!validRanges.includes(range)) {
+            return res.status(400).json({ 
+                status: 'error', 
+                message: `Invalid range. Use: ${validRanges.join(', ')}` 
+            });
+        }
+        
+        if (!validIntervals.includes(interval)) {
+            return res.status(400).json({ 
+                status: 'error', 
+                message: `Invalid interval. Use: ${validIntervals.join(', ')}` 
+            });
+        }
+        
+        const historyData = await yfinanceService.getHistoricalData(symbol, range, interval);
+        
+        // Format for TradingView Lightweight Charts
+        const chartData = historyData.map(point => ({
+            time: new Date(point.time).getTime() / 1000, // Unix timestamp (required by Lightweight Charts)
+            open: point.open,
+            high: point.high,
+            low: point.low,
+            close: point.close,
+            volume: point.volume
+        }));
+        
+        // Also get current quote for live update reference
+        const quote = await yfinanceService.getQuote(symbol);
+        
+        res.json({ 
+            status: 'success', 
+            symbol: symbol.toUpperCase(),
+            range,
+            interval,
+            data: chartData,
+            currentPrice: quote.last_price,
+            companyName: quote.company_name
+        });
+    } catch (error) {
+        console.error('Chart data error:', error);
+        res.status(500).json({ 
+            status: 'error', 
+            message: error.message 
+        });
+    }
+};
+
+module.exports = { getStock, getHistoricalData, searchStocks, getMultipleStocks, getChartData };

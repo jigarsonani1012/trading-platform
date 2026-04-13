@@ -8,12 +8,15 @@ import {
     Loader2,
     Plus,
     Trash2,
+    Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useActiveListStocks, useStockLists } from '../../hooks/useStockData';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import type { StockQuote } from '../../types/stock';
 import StockCard from '../StockCard/StockCard';
+import ValidatedTextInput from '../ValidatedTextInput/ValidatedTextInput';
+import { validateListName, formatForCreation } from '../../utils/textUtils';
 
 interface WatchlistProps {
     onAddMore?: () => void;
@@ -26,6 +29,7 @@ type FilterType = 'all' | 'gainers' | 'losers';
 
 const INITIAL_VISIBLE_COUNT = 6;
 
+// Confirm Modal Component
 const ConfirmModal: React.FC<{
     isOpen: boolean;
     title: string;
@@ -59,14 +63,30 @@ const ConfirmModal: React.FC<{
     );
 };
 
+// Create List Modal Component
 const CreateListModal: React.FC<{
     isOpen: boolean;
     value: string;
     onChange: (value: string) => void;
     onCreate: () => void;
     onCancel: () => void;
-}> = ({ isOpen, value, onChange, onCreate, onCancel }) => {
+    existingNames: string[];
+}> = ({ isOpen, value, onChange, onCreate, onCancel, existingNames }) => {
+    const [error, setError] = useState<string | null>(null);
+
+    const handleCreate = () => {
+        const formatted = formatForCreation(value);
+        const validation = validateListName(formatted, existingNames);
+        if (!validation.isValid) {
+            setError(validation.error);
+            toast.error(validation.error);
+            return;
+        }
+        onCreate();
+    };
+
     if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
             <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
@@ -82,14 +102,16 @@ const CreateListModal: React.FC<{
                 </div>
 
                 <div className="mt-6">
-                    <label className="block text-sm text-gray-300 mb-2">List Name</label>
-                    <input
-                        autoFocus
+                    <ValidatedTextInput
                         value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && onCreate()}
+                        onChange={onChange}
+                        onValidSubmit={handleCreate}
                         placeholder="Example: Swing Trades, SIP Radar, Bank Picks"
-                        className="w-full rounded-2xl border border-gray-700 bg-gray-900/70 px-4 py-3 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        label="List Name"
+                        description="Letters, numbers, spaces, &, -, ., () only"
+                        maxLength={25}
+                        validate={(val) => validateListName(formatForCreation(val), existingNames)}
+                        autoFocus
                     />
                 </div>
 
@@ -101,8 +123,9 @@ const CreateListModal: React.FC<{
                         Cancel
                     </button>
                     <button
-                        onClick={onCreate}
-                        className="cursor-pointer px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-white transition-colors"
+                        onClick={handleCreate}
+                        disabled={!value || !!error}
+                        className="cursor-pointer px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
                     >
                         Create List
                     </button>
@@ -112,9 +135,88 @@ const CreateListModal: React.FC<{
     );
 };
 
+// Edit List Modal Component
+const EditListModal: React.FC<{
+    isOpen: boolean;
+    currentName: string;
+    currentId: string;
+    value: string;
+    onChange: (value: string) => void;
+    onSave: () => void;
+    onCancel: () => void;
+    existingNames: Array<{ id: string; name: string }>;
+}> = ({ isOpen, currentName, currentId, value, onChange, onSave, onCancel, existingNames }) => {
+    const handleSave = () => {
+        const existingNamesList = existingNames
+            .filter(list => list.id !== currentId)
+            .map(list => list.name);
+
+        const validation = validateListName(value, existingNamesList);
+        if (!validation.isValid) {
+            toast.error(validation.error);
+            return;
+        }
+        onSave();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">Edit List</p>
+                        <h3 className="mt-2 text-2xl font-semibold text-gray-100">Rename your collection</h3>
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-blue-500/15 text-blue-300 flex items-center justify-center">
+                        <Pencil className="w-6 h-6" />
+                    </div>
+                </div>
+
+                <div className="mt-6">
+                    <ValidatedTextInput
+                        value={value}
+                        onChange={onChange}
+                        onValidSubmit={handleSave}
+                        placeholder="Example: Swing Trades, SIP Radar, Bank Picks"
+                        label="List Name"
+                        description={`Change "${currentName}" to something new`}
+                        maxLength={25}
+                        validate={(val) => {
+                            const existingNamesList = existingNames
+                                .filter(list => list.id !== currentId)
+                                .map(list => list.name);
+                            return validateListName(val, existingNamesList);
+                        }}
+                        autoFocus
+                    />
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                    <button
+                        onClick={onCancel}
+                        className="cursor-pointer px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        // disabled={!value || !!error}
+                        className="cursor-pointer px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Main Watchlist Component
 const Watchlist: React.FC<WatchlistProps> = () => {
     const queryClient = useQueryClient();
-    const { lists, activeList, createList, removeList, setActiveList, removeSymbolFromList } = useStockLists();
+    const { lists, activeList, createList, removeList, setActiveList, removeSymbolFromList, updateListName } = useStockLists();
     const { data: stocks, isLoading, error } = useActiveListStocks();
 
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
@@ -122,17 +224,19 @@ const Watchlist: React.FC<WatchlistProps> = () => {
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [filter, setFilter] = useState<FilterType>('all');
-    
+
     const [listToDelete, setListToDelete] = useState<string | null>(null);
     const [stockToRemove, setStockToRemove] = useState<string | null>(null);
     const [createListOpen, setCreateListOpen] = useState(false);
     const [newListName, setNewListName] = useState('');
 
+    // Edit list state
+    const [editingList, setEditingList] = useState<{ id: string; name: string } | null>(null);
+    const [editListName, setEditListName] = useState('');
+
     const { subscribe, unsubscribe } = useWebSocket({
         onPriceUpdate: (symbol, data) => {
-            if (!activeList) {
-                return;
-            }
+            if (!activeList) return;
 
             queryClient.setQueriesData<StockQuote[]>({ queryKey: ['listStocks', activeList.id] }, (current = []) =>
                 current.map((stock) => (stock.symbol === symbol ? data : stock))
@@ -141,9 +245,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
     });
 
     useEffect(() => {
-        if (!activeList) {
-            return;
-        }
+        if (!activeList) return;
 
         activeList.symbols.forEach((symbol) => subscribe(symbol));
         return () => {
@@ -152,19 +254,17 @@ const Watchlist: React.FC<WatchlistProps> = () => {
     }, [activeList, subscribe, unsubscribe]);
 
     const stockList = useMemo(() => stocks ?? [], [stocks]);
+
     const filteredStocks = useMemo(() => {
         if (filter === 'gainers') {
             return stockList.filter((stock) => stock.change > 0);
         }
-
         if (filter === 'losers') {
             return stockList.filter((stock) => stock.change <= 0);
         }
-
         return stockList;
     }, [filter, stockList]);
 
-    // Sorting function
     const sortedStocks = useMemo(() => {
         const items = [...filteredStocks];
         const multiplier = sortOrder === 'asc' ? 1 : -1;
@@ -183,7 +283,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
         return items;
     }, [filteredStocks, sortKey, sortOrder]);
 
-    // Pagination
     const visibleStocks = sortedStocks.slice(0, visibleCount);
     const hasMore = sortedStocks.length > visibleCount;
 
@@ -195,7 +294,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
             setNewListName('');
             return;
         }
-        toast.error('Please enter a valid list name');
     };
 
     const handleConfirmRemoveStock = () => {
@@ -208,12 +306,11 @@ const Watchlist: React.FC<WatchlistProps> = () => {
     const handleConfirmRemoveList = () => {
         if (!listToDelete) return;
         const target = lists.find(list => list.id === listToDelete);
-        const deletingLastList = lists.length === 1;
         const removed = removeList(listToDelete);
         if (removed && target) toast.success(`${target.name} removed`);
         setListToDelete(null);
 
-        if (deletingLastList) {
+        if (lists.length === 1) {
             setCreateListOpen(true);
         }
     };
@@ -274,6 +371,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                     onChange={setNewListName}
                     onCreate={handleCreateList}
                     onCancel={() => setCreateListOpen(false)}
+                    existingNames={lists.map(l => l.name)}
                 />
             </div>
         );
@@ -286,7 +384,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                     <h2 className="text-2xl font-bold text-gray-100">Custom Stock Lists</h2>
                     <p className="text-sm text-gray-400 mt-1">Auto-updating data with sorting, multiple views, and saved lists</p>
                 </div>
-                
             </div>
 
             <div className="rounded-[30px] border border-gray-700/70 bg-linear-to-br from-gray-900/95 via-gray-900/80 to-gray-950/95 p-5 mb-6 shadow-2xl">
@@ -316,20 +413,41 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <button onClick={() => setActiveList(list.id)} className="cursor-pointer text-left flex-1 min-w-0">
-                                        <div className={`text-base font-semibold ${isActive ? 'text-blue-100' : 'text-gray-100'}`}>{list.name}</div>
+                                        <div className={`text-base font-semibold ${isActive ? 'text-blue-100' : 'text-gray-100'}`}>
+                                            {list.name}
+                                        </div>
                                         <div className="mt-2 text-sm text-gray-400">{list.symbols.length} instruments</div>
-                                        <div className="mt-3 text-xs uppercase tracking-[0.2em] text-gray-500">{isActive ? 'Active List' : 'Saved List'}</div>
+                                        <div className="mt-3 text-xs uppercase tracking-[0.2em] text-gray-500">
+                                            {isActive ? 'Active List' : 'Saved List'}
+                                        </div>
                                     </button>
 
-                                    <button onClick={() => setListToDelete(list.id)} className="cursor-pointer text-gray-500 hover:text-red-400 transition-colors">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setEditingList({ id: list.id, name: list.name });
+                                                setEditListName(list.name);
+                                            }}
+                                            className="cursor-pointer text-gray-500 hover:text-blue-400 transition-colors p-1"
+                                            title="Edit list name"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setListToDelete(list.id)}
+                                            className="cursor-pointer text-gray-500 hover:text-red-400 transition-colors p-1"
+                                            title="Delete list"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
             </div>
+
             <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
                 <div>
                     <h3 className="text-xl font-semibold text-gray-100">{activeList.name}</h3>
@@ -352,7 +470,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                         ))}
                     </div>
 
-                    {/* Sort controls */}
                     <div className="inline-flex rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
                         <button
                             onClick={() => {
@@ -364,9 +481,8 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                                 }
                                 setVisibleCount(INITIAL_VISIBLE_COUNT);
                             }}
-                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 border-r border-gray-700 ${
-                                sortKey === 'change' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
-                            }`}
+                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 border-r border-gray-700 ${sortKey === 'change' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
+                                }`}
                         >
                             <span>%Chg</span>
                             <span className={`text-xs ${sortOrder === 'desc' && sortKey === 'change' ? 'rotate-180' : ''}`}>^</span>
@@ -381,31 +497,27 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                                 }
                                 setVisibleCount(INITIAL_VISIBLE_COUNT);
                             }}
-                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 ${
-                                sortKey === 'price' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
-                            }`}
+                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 ${sortKey === 'price' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
+                                }`}
                         >
                             <span>Chg</span>
                             <span className={`text-xs ${sortOrder === 'desc' && sortKey === 'price' ? 'rotate-180' : ''}`}>^</span>
                         </button>
                     </div>
 
-                    {/* View mode toggle */}
                     <div className="inline-flex rounded-xl bg-gray-800 p-1">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${
-                                viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-300'
-                            }`}
+                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-300'
+                                }`}
                         >
                             <Grid2X2 className="w-4 h-4" />
                             Grid
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${
-                                viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-300'
-                            }`}
+                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-300'
+                                }`}
                         >
                             <List className="w-4 h-4" />
                             List
@@ -465,6 +577,27 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                 onChange={setNewListName}
                 onCreate={handleCreateList}
                 onCancel={() => setCreateListOpen(false)}
+                existingNames={lists.map(l => l.name)}
+            />
+
+            <EditListModal
+                isOpen={editingList !== null}
+                currentName={editingList?.name || ''}
+                currentId={editingList?.id || ''}
+                value={editListName}
+                onChange={setEditListName}
+                onSave={() => {
+                    if (editingList && editListName.trim()) {
+                        updateListName(editingList.id, editListName);
+                        setEditingList(null);
+                        setEditListName('');
+                    }
+                }}
+                onCancel={() => {
+                    setEditingList(null);
+                    setEditListName('');
+                }}
+                existingNames={lists}
             />
         </div>
     );

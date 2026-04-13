@@ -37,8 +37,10 @@ app.use(express.json());
 
 app.get('/api/stock/:symbol', stockController.getStock);
 app.get('/api/stock/:symbol/history', stockController.getHistoricalData);
+app.get('/api/stock/:symbol/chart', stockController.getChartData);
 app.get('/api/search', stockController.searchStocks);
 app.post('/api/stocks', stockController.getMultipleStocks);
+// Add this new route after your existing routes
 
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });

@@ -1,7 +1,9 @@
+import { formatForCreation, formatForEdit, validateListName } from '../utils/textUtils';
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchHistoricalData, fetchStock, searchStocks } from '../services/api';
 import type { HistoricalDataPoint, SearchResult, StockList, StockQuote } from '../types/stock';
+import toast from 'react-hot-toast';
 
 const STOCK_LISTS_STORAGE_KEY = 'stock-lists-state';
 const STOCK_LISTS_UPDATED_EVENT = 'stock-lists-updated';
@@ -14,7 +16,7 @@ interface StockListsState {
 const DEFAULT_LIST: StockList = {
     id: 'default',
     name: 'My Watchlist',
-    symbols: [],
+    symbols: ['AAPL'],
 };
 
 const createDefaultState = (): StockListsState => ({
@@ -62,15 +64,15 @@ const writeStockListsState = (state: StockListsState) => {
 };
 
 const createListId = () => `list-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const formatListName = (name: string) => {
-    const trimmed = name.trim();
+// const formatListName = (name: string) => {
+//     const trimmed = name.trim();
 
-    if (!trimmed) {
-        return '';
-    }
+//     if (!trimmed) {
+//         return '';
+//     }
 
-    return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
-};
+//     return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
+// };
 
 export const useStock = (symbol: string | null) => {
     return useQuery<StockQuote>({
@@ -130,15 +132,26 @@ export const useStockLists = () => {
     };
 
     const createList = (name: string) => {
-        const trimmed = formatListName(name);
+        // Format: First letter uppercase, rest preserved
+        const formatted = formatForCreation(name);
 
-        if (!trimmed) {
+        if (!formatted) {
+            toast.error('Please enter a valid list name');
+            return null;
+        }
+
+        // Validate against existing names
+        const existingNames = state.lists.map(l => l.name);
+        const validation = validateListName(formatted, existingNames);
+
+        if (!validation.isValid) {
+            toast.error(validation.error);
             return null;
         }
 
         const newList: StockList = {
             id: createListId(),
-            name: trimmed,
+            name: formatted,
             symbols: [],
         };
 
@@ -147,6 +160,7 @@ export const useStockLists = () => {
             activeListId: newList.id,
         });
 
+        toast.success(`${formatted} created`);
         return newList;
     };
 
@@ -230,6 +244,47 @@ export const useStockLists = () => {
         queryClient.setQueryData<StockQuote[]>(['listStocks', listId, nextSymbols], nextStocks);
     };
 
+    const updateListName = (listId: string, newName: string) => {
+        // For edit: Preserve user's exact case, only sanitize
+        const formatted = formatForEdit(newName);
+
+        if (!formatted) {
+            toast.error('List name cannot be empty');
+            return false;
+        }
+
+        // Get existing names (excluding current list)
+        const existingNames = state.lists
+            .filter(list => list.id !== listId)
+            .map(list => list.name);
+
+        // Validate
+        const validation = validateListName(formatted, existingNames);
+        if (!validation.isValid) {
+            toast.error(validation.error);
+            return false;
+        }
+
+        const targetList = state.lists.find((list) => list.id === listId);
+        if (targetList?.name === formatted) {
+            toast.error('New name is the same as current name');
+            return false;
+        }
+
+        const nextLists = state.lists.map((list) =>
+            list.id === listId ? { ...list, name: formatted } : list
+        );
+
+        saveState({
+            lists: nextLists,
+            activeListId: state.activeListId,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['listStocks', listId] });
+        toast.success(`List renamed to "${formatted}"`);
+        return true;
+    };
+
     const activeList = state.lists.find((list) => list.id === state.activeListId) ?? state.lists[0] ?? null;
 
     return {
@@ -240,6 +295,7 @@ export const useStockLists = () => {
         setActiveList,
         addSymbolToList,
         removeSymbolFromList,
+        updateListName,
     };
 };
 

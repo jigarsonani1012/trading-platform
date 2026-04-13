@@ -17,8 +17,8 @@ export const fetchHistoricalData = async (
     period: string = '1mo',
     interval: string = '1d'
 ): Promise<HistoricalDataPoint[]> => {
-    const response = await apiClient.get(`/stock/${encodeURIComponent(symbol)}/history`, {
-        params: { period, interval }
+    const response = await apiClient.get(`/stock/${encodeURIComponent(symbol)}/chart`, {
+        params: { range: period, interval }
     });
     return response.data.data;
 };

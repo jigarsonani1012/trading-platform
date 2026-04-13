@@ -246,4 +246,6 @@ class YFinanceService {
     }
 }
 
+
+
 module.exports = new YFinanceService();
