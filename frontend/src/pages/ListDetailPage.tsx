@@ -69,7 +69,7 @@ const EditListModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-gradient-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">Edit List</p>
@@ -276,9 +276,9 @@ const ListDetailPage: React.FC = () => {
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-gray-800"><ArrowLeft className="w-5 h-5 text-gray-400" /></button>
+                            <button onClick={() => navigate('/')} className="cursor-pointer p-2 rounded-lg hover:bg-gray-800"><ArrowLeft className="w-5 h-5 text-gray-400" /></button>
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center"><TrendingUp className="w-6 h-6 text-white" /></div>
+                                <div className="w-10 h-10 bg-linear-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center"><TrendingUp className="w-6 h-6 text-white" /></div>
                                 <div>
                                     <div className="flex gap-2">
                                         <h1 className="text-xl font-bold text-white">{list.name}</h1>
@@ -334,7 +334,7 @@ const ListDetailPage: React.FC = () => {
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
                     <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-2xl">
                         <h3 className="text-xl font-semibold text-white mb-4">Share "{list.name}"</h3>
-                        <div className="flex gap-2 mb-4"><input value={shareUrl} readOnly className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm" /><button onClick={copyToClipboard} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg"><Copy className="w-5 h-5" /></button></div>
+                        <div className="flex gap-2 mb-4"><input value={shareUrl} readOnly className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm" /><button onClick={copyToClipboard} className="cursor-pointer p-2 bg-gray-700 hover:bg-gray-600 rounded-lg"><Copy className="w-5 h-5" /></button></div>
                         <div className="flex justify-between mb-6">
                             <WhatsappShareButton url={shareUrl} title={`Check out my stock watchlist: ${list?.name}`}><div className="flex flex-col items-center gap-1 p-3 bg-green-600 hover:bg-green-500 rounded-xl"><WhatsappIcon size={24} round /><span className="text-xs">WhatsApp</span></div></WhatsappShareButton>
                             <TelegramShareButton url={shareUrl} title={`Check out my stock watchlist: ${list?.name}`}><div className="flex flex-col items-center gap-1 p-3 bg-blue-500 hover:bg-blue-400 rounded-xl"><TelegramIcon size={24} round /><span className="text-xs">Telegram</span></div></TelegramShareButton>
@@ -342,7 +342,7 @@ const ListDetailPage: React.FC = () => {
                             <FacebookShareButton url={shareUrl} title={`Check out my stock watchlist: ${list?.name}`}><div className="flex flex-col items-center gap-1 p-3 bg-blue-700 hover:bg-blue-600 rounded-xl"><FacebookIcon size={24} round /><span className="text-xs">Facebook</span></div></FacebookShareButton>
                             <LinkedinShareButton url={shareUrl} title={`Check out my stock watchlist: ${list?.name}`}><div className="flex flex-col items-center gap-1 p-3 bg-blue-800 hover:bg-blue-700 rounded-xl"><LinkedinIcon size={24} round /><span className="text-xs">LinkedIn</span></div></LinkedinShareButton>
                         </div>
-                        <button onClick={() => setShowShareModal(false)} className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Close</button>
+                        <button onClick={() => setShowShareModal(false)} className="cursor-pointer w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Close</button>
                     </div>
                 </div>
             )}

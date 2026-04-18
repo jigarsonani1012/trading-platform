@@ -24,7 +24,7 @@ const ChartView: React.FC<ChartViewProps> = ({ initialSymbol, onBack }) => {
                     {onBack && (
                         <button
                             onClick={onBack}
-                            className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                            className="cursor-pointer p-2 rounded-lg hover:bg-gray-800 transition-colors"
                         >
                             <ArrowLeft className="w-5 h-5 text-gray-400" />
                         </button>

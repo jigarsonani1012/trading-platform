@@ -86,7 +86,7 @@ const CreateListModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-gradient-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">New List</p>
@@ -159,7 +159,7 @@ const EditListModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-gradient-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">Edit List</p>
@@ -214,6 +214,96 @@ const EditListModal: React.FC<{
 //     symbols: string[];
 //     type?: 'shared' | 'local';
 // }
+
+const ShareModal: React.FC<{
+    isOpen: boolean;
+    shareUrl: string;
+    listName: string;
+    onClose: () => void;
+}> = ({ isOpen, shareUrl, listName, onClose }) => {
+    const [isCopied, setIsCopied] = useState(false);
+
+    const copyToClipboard = async () => {
+        await navigator.clipboard.writeText(shareUrl);
+        setIsCopied(true);
+        toast.success('Link copied!');
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="w-full max-w-lg bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-2xl">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-semibold text-white">Share "{listName}"</h3>
+                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-800">
+                        <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                </div>
+
+                <div className="flex gap-2 mb-4">
+                    <input
+                        type="text"
+                        value={shareUrl}
+                        readOnly
+                        className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
+                    />
+                    <button
+                        onClick={copyToClipboard}
+                        className="cursor-pointer p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                        {isCopied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-gray-300" />}
+                    </button>
+                </div>
+
+                <div className="flex justify-between gap-3 mb-6">
+                    <WhatsappShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                        <div className="flex flex-col items-center gap-1 p-3 bg-green-600 hover:bg-green-500 rounded-xl transition-colors">
+                            <WhatsappIcon size={24} round />
+                            <span className="text-xs">WhatsApp</span>
+                        </div>
+                    </WhatsappShareButton>
+
+                    <TelegramShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                        <div className="flex flex-col items-center gap-1 p-3 bg-blue-500 hover:bg-blue-400 rounded-xl transition-colors">
+                            <TelegramIcon size={24} round />
+                            <span className="text-xs">Telegram</span>
+                        </div>
+                    </TelegramShareButton>
+
+                    <TwitterShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                        <div className="flex flex-col items-center gap-1 p-3 bg-sky-600 hover:bg-sky-500 rounded-xl transition-colors">
+                            <TwitterIcon size={24} round />
+                            <span className="text-xs">Twitter</span>
+                        </div>
+                    </TwitterShareButton>
+
+                    <FacebookShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                        <div className="flex flex-col items-center gap-1 p-3 bg-blue-700 hover:bg-blue-600 rounded-xl transition-colors">
+                            <FacebookIcon size={24} round />
+                            <span className="text-xs">Facebook</span>
+                        </div>
+                    </FacebookShareButton>
+
+                    <LinkedinShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                        <div className="flex flex-col items-center gap-1 p-3 bg-blue-800 hover:bg-blue-700 rounded-xl transition-colors">
+                            <LinkedinIcon size={24} round />
+                            <span className="text-xs">LinkedIn</span>
+                        </div>
+                    </LinkedinShareButton>
+                </div>
+
+                <button
+                    onClick={onClose}
+                    className="cursor-pointer w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                >
+                    Close
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const Watchlist: React.FC<WatchlistProps> = () => {
     const queryClient = useQueryClient();
@@ -283,7 +373,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
             toast.error('Add instruments to share this list');
             return;
         }
-        
+
         try {
             const response = await fetch(`${getApiBaseUrl()}/share`, {
                 method: 'POST',
@@ -369,95 +459,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
         );
     }
 
-    const ShareModal: React.FC<{
-        isOpen: boolean;
-        shareUrl: string;
-        listName: string;
-        onClose: () => void;
-    }> = ({ isOpen, shareUrl, listName, onClose }) => {
-        const [isCopied, setIsCopied] = useState(false);
 
-        const copyToClipboard = async () => {
-            await navigator.clipboard.writeText(shareUrl);
-            setIsCopied(true);
-            toast.success('Link copied!');
-            setTimeout(() => setIsCopied(false), 2000);
-        };
-
-        if (!isOpen) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-                <div className="w-full max-w-lg bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-2xl">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-semibold text-white">Share "{listName}"</h3>
-                        <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-800">
-                            <X className="w-5 h-5 text-gray-400" />
-                        </button>
-                    </div>
-
-                    <div className="flex gap-2 mb-4">
-                        <input
-                            type="text"
-                            value={shareUrl}
-                            readOnly
-                            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
-                        />
-                        <button
-                            onClick={copyToClipboard}
-                            className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                        >
-                            {isCopied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-gray-300" />}
-                        </button>
-                    </div>
-
-                    <div className="flex justify-between gap-3 mb-6">
-                        <WhatsappShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
-                            <div className="flex flex-col items-center gap-1 p-3 bg-green-600 hover:bg-green-500 rounded-xl transition-colors">
-                                <WhatsappIcon size={24} round />
-                                <span className="text-xs">WhatsApp</span>
-                            </div>
-                        </WhatsappShareButton>
-
-                        <TelegramShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
-                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-500 hover:bg-blue-400 rounded-xl transition-colors">
-                                <TelegramIcon size={24} round />
-                                <span className="text-xs">Telegram</span>
-                            </div>
-                        </TelegramShareButton>
-
-                        <TwitterShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
-                            <div className="flex flex-col items-center gap-1 p-3 bg-sky-600 hover:bg-sky-500 rounded-xl transition-colors">
-                                <TwitterIcon size={24} round />
-                                <span className="text-xs">Twitter</span>
-                            </div>
-                        </TwitterShareButton>
-
-                        <FacebookShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
-                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-700 hover:bg-blue-600 rounded-xl transition-colors">
-                                <FacebookIcon size={24} round />
-                                <span className="text-xs">Facebook</span>
-                            </div>
-                        </FacebookShareButton>
-
-                        <LinkedinShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
-                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-800 hover:bg-blue-700 rounded-xl transition-colors">
-                                <LinkedinIcon size={24} round />
-                                <span className="text-xs">LinkedIn</span>
-                            </div>
-                        </LinkedinShareButton>
-                    </div>
-
-                    <button
-                        onClick={onClose}
-                        className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
-        );
-    };
 
     return (
         <div>
