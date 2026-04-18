@@ -5,7 +5,6 @@ const http = require('http');
 const WebSocketStreamServer = require('./websocket/streamServer');
 const stockController = require('./controllers/stockController');
 const mongoose = require('mongoose');
-
 const shareRoutes = require('./routes/shareRoutes');
 
 dotenv.config();
