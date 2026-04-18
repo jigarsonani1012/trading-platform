@@ -13,7 +13,6 @@ interface StockChartProps {
 
 const StockChartWrapper: React.FC<StockChartProps> = ({ symbol, isExpanded = false }) => {
     const [showModal, setShowModal] = useState(() => {
-        // Try to restore from localStorage on initial load
         if (typeof window !== 'undefined' && symbol) {
             const saved = localStorage.getItem(`chart-modal-${symbol}`);
             if (saved === 'true') {
@@ -24,7 +23,6 @@ const StockChartWrapper: React.FC<StockChartProps> = ({ symbol, isExpanded = fal
     });
     const { data: stock } = useStock(symbol || null);
 
-    // Persist modal state to localStorage whenever it changes
     useEffect(() => {
         if (symbol && typeof window !== 'undefined') {
             localStorage.setItem(`chart-modal-${symbol}`, String(showModal));
@@ -46,7 +44,6 @@ const StockChartWrapper: React.FC<StockChartProps> = ({ symbol, isExpanded = fal
 
     return (
         <>
-            {/* Inline chart - default view */}
             <div className="w-full mb-6">
                 <InlineChart 
                     symbol={symbol} 
@@ -55,7 +52,6 @@ const StockChartWrapper: React.FC<StockChartProps> = ({ symbol, isExpanded = fal
                 />
             </div>
 
-            {/* Full chart modal - expanded view */}
             <ChartModal
                 stock={stock}
                 isOpen={showModal}

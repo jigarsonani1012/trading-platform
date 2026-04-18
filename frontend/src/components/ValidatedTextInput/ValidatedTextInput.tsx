@@ -32,14 +32,12 @@ const ValidatedTextInput: React.FC<ValidatedTextInputProps> = ({
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let newValue = e.target.value;
 
-        // Enforce max length
         if (newValue.length > maxLength) {
             newValue = newValue.slice(0, maxLength);
         }
 
         onChange(newValue);
 
-        // Real-time validation if provided
         if (validate && touched) {
             const result = validate(newValue);
             setLocalError(result.error);
@@ -95,7 +93,6 @@ const ValidatedTextInput: React.FC<ValidatedTextInputProps> = ({
                     `}
                 />
 
-                {/* Validation Icons */}
                 {value && !showError && isValid && (
                     <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
                 )}
@@ -104,7 +101,6 @@ const ValidatedTextInput: React.FC<ValidatedTextInputProps> = ({
                 )}
             </div>
 
-            {/* Character Counter */}
             <div className="flex justify-between items-center mt-1">
                 <div className="text-xs text-gray-500">
                     {description && <span>{description}</span>}
@@ -114,7 +110,6 @@ const ValidatedTextInput: React.FC<ValidatedTextInputProps> = ({
                 </div>
             </div>
 
-            {/* Error Message */}
             {showError && (
                 <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />

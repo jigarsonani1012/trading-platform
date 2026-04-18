@@ -1,35 +1,32 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
     AlertCircle,
     ChevronDown,
-    Grid2X2,
-    List,
     Loader2,
     Plus,
     Trash2,
     Pencil,
+    Share2,
+    Check,
+    X,
+    Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useActiveListStocks, useStockLists } from '../../hooks/useStockData';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import type { StockQuote } from '../../types/stock';
-import StockCard from '../StockCard/StockCard';
 import ValidatedTextInput from '../ValidatedTextInput/ValidatedTextInput';
 import { validateListName, formatForCreation } from '../../utils/textUtils';
+import { WhatsappShareButton, TelegramShareButton, TwitterShareButton, LinkedinShareButton, FacebookShareButton, WhatsappIcon, TelegramIcon, TwitterIcon, LinkedinIcon, FacebookIcon } from 'react-share';
 
 interface WatchlistProps {
     onAddMore?: () => void;
 }
 
-type SortKey = 'price' | 'change';
-type SortOrder = 'asc' | 'desc';
-type ViewMode = 'grid' | 'list';
-type FilterType = 'all' | 'gainers' | 'losers';
-
 const INITIAL_VISIBLE_COUNT = 6;
 
-// Confirm Modal Component
 const ConfirmModal: React.FC<{
     isOpen: boolean;
     title: string;
@@ -63,7 +60,6 @@ const ConfirmModal: React.FC<{
     );
 };
 
-// Create List Modal Component
 const CreateListModal: React.FC<{
     isOpen: boolean;
     value: string;
@@ -89,7 +85,7 @@ const CreateListModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-gradient-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">New List</p>
@@ -135,7 +131,6 @@ const CreateListModal: React.FC<{
     );
 };
 
-// Edit List Modal Component
 const EditListModal: React.FC<{
     isOpen: boolean;
     currentName: string;
@@ -163,7 +158,7 @@ const EditListModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
-            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-linear-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
+            <div className="w-full max-w-lg rounded-[28px] border border-gray-700/80 bg-gradient-to-br from-gray-900 to-gray-950 p-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">Edit List</p>
@@ -202,8 +197,7 @@ const EditListModal: React.FC<{
                     </button>
                     <button
                         onClick={handleSave}
-                        // disabled={!value || !!error}
-                        className="cursor-pointer px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                        className="cursor-pointer px-5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-white transition-colors"
                     >
                         Save Changes
                     </button>
@@ -213,31 +207,34 @@ const EditListModal: React.FC<{
     );
 };
 
-// Main Watchlist Component
+interface ListData {
+    id: string;
+    name: string;
+    symbols: string[];
+    type?: 'shared' | 'local';
+}
+
 const Watchlist: React.FC<WatchlistProps> = () => {
     const queryClient = useQueryClient();
-    const { lists, activeList, createList, removeList, setActiveList, removeSymbolFromList, updateListName } = useStockLists();
+    const { lists, activeList, createList, removeList, removeSymbolFromList, updateListName } = useStockLists();
     const { data: stocks, isLoading, error } = useActiveListStocks();
 
     const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
-    const [sortKey, setSortKey] = useState<SortKey>('change');
-    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
-    const [filter, setFilter] = useState<FilterType>('all');
-
     const [listToDelete, setListToDelete] = useState<string | null>(null);
     const [stockToRemove, setStockToRemove] = useState<string | null>(null);
     const [createListOpen, setCreateListOpen] = useState(false);
     const [newListName, setNewListName] = useState('');
-
-    // Edit list state
     const [editingList, setEditingList] = useState<{ id: string; name: string } | null>(null);
     const [editListName, setEditListName] = useState('');
+    const navigate = useNavigate();
+
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [shareUrl, setShareUrl] = useState('');
+    const [sharingList, setSharingList] = useState<{ name: string; url: string } | null>(null);
 
     const { subscribe, unsubscribe } = useWebSocket({
         onPriceUpdate: (symbol, data) => {
             if (!activeList) return;
-
             queryClient.setQueriesData<StockQuote[]>({ queryKey: ['listStocks', activeList.id] }, (current = []) =>
                 current.map((stock) => (stock.symbol === symbol ? data : stock))
             );
@@ -246,7 +243,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
 
     useEffect(() => {
         if (!activeList) return;
-
         activeList.symbols.forEach((symbol) => subscribe(symbol));
         return () => {
             activeList.symbols.forEach((symbol) => unsubscribe(symbol));
@@ -254,37 +250,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
     }, [activeList, subscribe, unsubscribe]);
 
     const stockList = useMemo(() => stocks ?? [], [stocks]);
-
-    const filteredStocks = useMemo(() => {
-        if (filter === 'gainers') {
-            return stockList.filter((stock) => stock.change > 0);
-        }
-        if (filter === 'losers') {
-            return stockList.filter((stock) => stock.change <= 0);
-        }
-        return stockList;
-    }, [filter, stockList]);
-
-    const sortedStocks = useMemo(() => {
-        const items = [...filteredStocks];
-        const multiplier = sortOrder === 'asc' ? 1 : -1;
-
-        items.sort((a, b) => {
-            let aValue: number, bValue: number;
-            if (sortKey === 'price') {
-                aValue = a.change;
-                bValue = b.change;
-            } else {
-                aValue = a.percent_change;
-                bValue = b.percent_change;
-            }
-            return (aValue - bValue) * multiplier;
-        });
-        return items;
-    }, [filteredStocks, sortKey, sortOrder]);
-
-    const visibleStocks = sortedStocks.slice(0, visibleCount);
-    const hasMore = sortedStocks.length > visibleCount;
+    const hasMore = stockList.length > visibleCount;
 
     const handleCreateList = () => {
         const created = createList(newListName);
@@ -292,7 +258,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
             toast.success(`${created.name} created`);
             setCreateListOpen(false);
             setNewListName('');
-            return;
         }
     };
 
@@ -309,9 +274,38 @@ const Watchlist: React.FC<WatchlistProps> = () => {
         const removed = removeList(listToDelete);
         if (removed && target) toast.success(`${target.name} removed`);
         setListToDelete(null);
+        if (lists.length === 1) setCreateListOpen(true);
+    };
 
-        if (lists.length === 1) {
-            setCreateListOpen(true);
+    const handleShareList = async (list: { id: string; name: string; symbols: string[] }) => {
+        if (!list.symbols.length) {
+            toast.error('Add instruments to share this list');
+            return;
+        }
+        
+        try {
+            const response = await fetch('http://localhost:5000/api/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    listName: list.name,
+                    symbols: list.symbols,
+                    userId: localStorage.getItem('userId') || 'anonymous',
+                    expiresInDays: 7,
+                    listId: list.id,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setShareUrl(data.shareUrl);
+                setSharingList({ name: list.name, url: data.shareUrl });
+                setShowShareModal(true);
+            } else {
+                toast.error(data.error || 'Failed to create share link');
+            }
+        } catch (error) {
+            console.error('Share error:', error);
+            toast.error('Failed to create share link');
         }
     };
 
@@ -342,11 +336,10 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                         <p className="text-sm text-gray-400 mt-1">Create a list to unlock sorting, views, and live list tracking.</p>
                     </div>
                 </div>
-
                 <div className="rounded-[28px] border border-dashed border-gray-700 bg-gray-900/50 p-10 text-center">
                     <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">No Lists</p>
                     <h3 className="mt-3 text-2xl font-semibold text-gray-100">Create your first list to get started</h3>
-                    <p className="mt-3 text-sm text-gray-400">Once a list exists, the filters, sort controls, views, and tracked data section will appear here.</p>
+                    <p className="mt-3 text-sm text-gray-400">Once a list exists, the tracked data section will appear here.</p>
                     <button
                         onClick={() => setCreateListOpen(true)}
                         className="cursor-pointer mt-6 inline-flex items-center gap-2 rounded-2xl px-5 py-3 bg-blue-500 hover:bg-blue-400 text-white transition-colors shadow-lg shadow-blue-500/20"
@@ -355,7 +348,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                         <span>Create First List</span>
                     </button>
                 </div>
-
                 <ConfirmModal
                     isOpen={listToDelete !== null}
                     title="Delete List ?"
@@ -364,7 +356,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                     onConfirm={handleConfirmRemoveList}
                     onCancel={() => setListToDelete(null)}
                 />
-
                 <CreateListModal
                     isOpen={createListOpen}
                     value={newListName}
@@ -377,23 +368,112 @@ const Watchlist: React.FC<WatchlistProps> = () => {
         );
     }
 
+    const ShareModal: React.FC<{
+        isOpen: boolean;
+        shareUrl: string;
+        listName: string;
+        onClose: () => void;
+    }> = ({ isOpen, shareUrl, listName, onClose }) => {
+        const [isCopied, setIsCopied] = useState(false);
+
+        const copyToClipboard = async () => {
+            await navigator.clipboard.writeText(shareUrl);
+            setIsCopied(true);
+            toast.success('Link copied!');
+            setTimeout(() => setIsCopied(false), 2000);
+        };
+
+        if (!isOpen) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+                <div className="w-full max-w-lg bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-semibold text-white">Share "{listName}"</h3>
+                        <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-800">
+                            <X className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2 mb-4">
+                        <input
+                            type="text"
+                            value={shareUrl}
+                            readOnly
+                            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
+                        />
+                        <button
+                            onClick={copyToClipboard}
+                            className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                        >
+                            {isCopied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-gray-300" />}
+                        </button>
+                    </div>
+
+                    <div className="flex justify-between gap-3 mb-6">
+                        <WhatsappShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                            <div className="flex flex-col items-center gap-1 p-3 bg-green-600 hover:bg-green-500 rounded-xl transition-colors">
+                                <WhatsappIcon size={24} round />
+                                <span className="text-xs">WhatsApp</span>
+                            </div>
+                        </WhatsappShareButton>
+
+                        <TelegramShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-500 hover:bg-blue-400 rounded-xl transition-colors">
+                                <TelegramIcon size={24} round />
+                                <span className="text-xs">Telegram</span>
+                            </div>
+                        </TelegramShareButton>
+
+                        <TwitterShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                            <div className="flex flex-col items-center gap-1 p-3 bg-sky-600 hover:bg-sky-500 rounded-xl transition-colors">
+                                <TwitterIcon size={24} round />
+                                <span className="text-xs">Twitter</span>
+                            </div>
+                        </TwitterShareButton>
+
+                        <FacebookShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-700 hover:bg-blue-600 rounded-xl transition-colors">
+                                <FacebookIcon size={24} round />
+                                <span className="text-xs">Facebook</span>
+                            </div>
+                        </FacebookShareButton>
+
+                        <LinkedinShareButton url={shareUrl} title={`Check out my stock watchlist: ${listName}`}>
+                            <div className="flex flex-col items-center gap-1 p-3 bg-blue-800 hover:bg-blue-700 rounded-xl transition-colors">
+                                <LinkedinIcon size={24} round />
+                                <span className="text-xs">LinkedIn</span>
+                            </div>
+                        </LinkedinShareButton>
+                    </div>
+
+                    <button
+                        onClick={onClose}
+                        className="w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-100">Custom Stock Lists</h2>
-                    <p className="text-sm text-gray-400 mt-1">Auto-updating data with sorting, multiple views, and saved lists</p>
+                    <p className="text-sm text-gray-400 mt-1">Click any list to view and manage stocks</p>
                 </div>
             </div>
 
-            <div className="rounded-[30px] border border-gray-700/70 bg-linear-to-br from-gray-900/95 via-gray-900/80 to-gray-950/95 p-5 mb-6 shadow-2xl">
+            <div className="rounded-[30px] border border-gray-700/70 bg-gradient-to-br from-gray-900/95 via-gray-900/80 to-gray-950/95 p-5 mb-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">List Studio</p>
-                        <h3 className="mt-2 text-2xl font-semibold text-gray-100">Switch between your custom collections</h3>
-                        <p className="mt-2 text-sm text-gray-400 max-w-2xl">Keep separate baskets for swing trades, SIP ideas, index tracking, or sector-specific picks.</p>
+                        <h3 className="mt-2 text-2xl font-semibold text-gray-100">Your collections</h3>
+                        <p className="mt-2 text-sm text-gray-400 max-w-2xl">Click on any list to view details, add stocks, and manage your portfolio.</p>
                     </div>
-
                     <button
                         onClick={() => setCreateListOpen(true)}
                         className="cursor-pointer inline-flex items-center gap-2 rounded-2xl px-5 py-3 bg-blue-500 hover:bg-blue-400 text-white transition-colors shadow-lg shadow-blue-500/20"
@@ -409,20 +489,29 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                         return (
                             <div
                                 key={list.id}
-                                className={`rounded-2xl border p-4 transition-all ${isActive ? 'border-blue-400/50 bg-blue-500/10 shadow-lg shadow-blue-500/10' : 'border-gray-700 bg-gray-900/45 hover:border-gray-600'}`}
+                                className="rounded-2xl border border-gray-700 bg-gray-900/45 p-4 transition-all hover:border-blue-400/50 hover:bg-blue-500/10 hover:shadow-lg hover:shadow-blue-500/10"
                             >
                                 <div className="flex items-start justify-between gap-3">
-                                    <button onClick={() => setActiveList(list.id)} className="cursor-pointer text-left flex-1 min-w-0">
+                                    <button
+                                        onClick={() => navigate(`/list/${list.id}`)}
+                                        className="cursor-pointer text-left flex-1 min-w-0"
+                                    >
                                         <div className={`text-base font-semibold ${isActive ? 'text-blue-100' : 'text-gray-100'}`}>
                                             {list.name}
                                         </div>
                                         <div className="mt-2 text-sm text-gray-400">{list.symbols.length} instruments</div>
                                         <div className="mt-3 text-xs uppercase tracking-[0.2em] text-gray-500">
-                                            {isActive ? 'Active List' : 'Saved List'}
+                                            Click to view details
                                         </div>
                                     </button>
-
                                     <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleShareList(list)}
+                                            className="cursor-pointer disabled:cursor-not-drop text-gray-500 hover:text-green-400 transition-colors p-1"
+                                            title="Share this list"
+                                        >
+                                            <Share2 className="w-4 h-4" />
+                                        </button>
                                         <button
                                             onClick={() => {
                                                 setEditingList({ id: list.id, name: list.name });
@@ -447,99 +536,6 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                     })}
                 </div>
             </div>
-
-            <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
-                <div>
-                    <h3 className="text-xl font-semibold text-gray-100">{activeList.name}</h3>
-                    <p className="text-sm text-gray-400 mt-1">{stockList.length} instruments in this list</p>
-                </div>
-
-                <div className="flex items-center gap-4 flex-wrap">
-                    <div className="inline-flex rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
-                        {(['all', 'gainers', 'losers'] as FilterType[]).map((type) => (
-                            <button
-                                key={type}
-                                onClick={() => {
-                                    setFilter(type);
-                                    setVisibleCount(INITIAL_VISIBLE_COUNT);
-                                }}
-                                className={`cursor-pointer px-4 py-2 text-sm ${filter === type ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'}`}
-                            >
-                                {type === 'all' ? 'All' : type === 'gainers' ? 'Gainers' : 'Losers'}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="inline-flex rounded-xl border border-gray-700 bg-gray-900/70 overflow-hidden">
-                        <button
-                            onClick={() => {
-                                if (sortKey === 'change') {
-                                    setSortOrder((cur) => (cur === 'desc' ? 'asc' : 'desc'));
-                                } else {
-                                    setSortKey('change');
-                                    setSortOrder('desc');
-                                }
-                                setVisibleCount(INITIAL_VISIBLE_COUNT);
-                            }}
-                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 border-r border-gray-700 ${sortKey === 'change' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
-                                }`}
-                        >
-                            <span>%Chg</span>
-                            <span className={`text-xs ${sortOrder === 'desc' && sortKey === 'change' ? 'rotate-180' : ''}`}>^</span>
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (sortKey === 'price') {
-                                    setSortOrder((cur) => (cur === 'desc' ? 'asc' : 'desc'));
-                                } else {
-                                    setSortKey('price');
-                                    setSortOrder('desc');
-                                }
-                                setVisibleCount(INITIAL_VISIBLE_COUNT);
-                            }}
-                            className={`cursor-pointer px-4 py-2 text-sm inline-flex items-center gap-2 ${sortKey === 'price' ? 'bg-blue-500 text-white' : 'text-gray-300 hover:bg-gray-800'
-                                }`}
-                        >
-                            <span>Chg</span>
-                            <span className={`text-xs ${sortOrder === 'desc' && sortKey === 'price' ? 'rotate-180' : ''}`}>^</span>
-                        </button>
-                    </div>
-
-                    <div className="inline-flex rounded-xl bg-gray-800 p-1">
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-300'
-                                }`}
-                        >
-                            <Grid2X2 className="w-4 h-4" />
-                            Grid
-                        </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`cursor-pointer px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'text-gray-300'
-                                }`}
-                        >
-                            <List className="w-4 h-4" />
-                            List
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {visibleStocks.length === 0 ? (
-                <p className="text-gray-400 text-center py-10">No instruments found for the selected filter.</p>
-            ) : (
-                <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5' : 'space-y-4'}>
-                    {visibleStocks.map((stock) => (
-                        <StockCard
-                            key={`${activeList.id}-${stock.symbol}`}
-                            stock={stock}
-                            viewMode={viewMode}
-                            onRemove={(symbol) => setStockToRemove(symbol)}
-                        />
-                    ))}
-                </div>
-            )}
 
             {hasMore && (
                 <div className="flex justify-center mt-6">
@@ -598,6 +594,13 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                     setEditListName('');
                 }}
                 existingNames={lists}
+            />
+
+            <ShareModal
+                isOpen={showShareModal}
+                shareUrl={shareUrl}
+                listName={sharingList?.name || ''}
+                onClose={() => setShowShareModal(false)}
             />
         </div>
     );

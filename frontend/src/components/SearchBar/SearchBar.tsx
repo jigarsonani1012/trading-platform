@@ -111,7 +111,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                                     if (disabled) {
                                         return;
                                     }
-
                                     setSelectedFilter(option.id);
                                     if (searchTerm.trim().length >= 2) {
                                         setIsOpen(true);
@@ -135,7 +134,6 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                             if (disabled) {
                                 return;
                             }
-
                             setSearchTerm(event.target.value);
                             setIsOpen(true);
                         }}
@@ -175,7 +173,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                     )}
 
                     {!error && totalResults > 0 && (
-                        <div className="max-h-112 overflow-y-auto">
+                        <div className="max-h-96 overflow-y-auto">
                             <div className="px-4 py-3 border-b border-gray-700/50 bg-gray-900/60 sticky top-0 z-10 text-xs text-gray-400">
                                 Showing {totalResults} {selectedFilter === 'all' ? 'results' : filterOptions.find((option) => option.id === selectedFilter)?.label.toLowerCase()}
                             </div>

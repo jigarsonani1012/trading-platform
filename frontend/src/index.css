@@ -42,7 +42,6 @@ body {
   animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -62,7 +61,6 @@ body {
   background-color: rgb(107 114 128);
 }
 
-/* Loading skeleton animation */
 .skeleton {
   background-color: rgb(55 65 81);
   border-radius: 0.5rem;
@@ -75,7 +73,6 @@ body {
   0% {
     background-position: 200% 0;
   }
-
   100% {
     background-position: -200% 0;
   }

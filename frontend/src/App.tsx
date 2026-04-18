@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Activity, TrendingUp, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,8 +9,10 @@ import Watchlist from './components/Watchlist/Watchlist';
 import { useStockLists } from './hooks/useStockData';
 import { fetchStock } from './services/api';
 import type { SearchResult, StockQuote } from './types/stock';
+import ListDetailPage from './pages/ListDetailPage';
+import SharedListView from './pages/SharedListView';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
     const queryClient = useQueryClient();
     const [scrolled, setScrolled] = useState(false);
     const { activeList, addSymbolToList } = useStockLists();
@@ -67,7 +70,6 @@ const App: React.FC = () => {
                                 <p className="text-xs text-gray-400">Custom Lists, Funds, SIPs, and Indices</p>
                             </div>
                         </div>
-
                         <div className="hidden md:flex items-center gap-2 text-sm text-gray-400">
                             <Zap className="w-4 h-4 text-yellow-500" />
                             <span>Auto-updating lists and live market snapshot</span>
@@ -112,10 +114,22 @@ const App: React.FC = () => {
             <footer className="border-t border-gray-800 mt-16 py-8 px-4">
                 <div className="container mx-auto text-center text-gray-500 text-sm">
                     <p>Data is pulled from Yahoo Finance endpoints for live quotes, indices, and search results.</p>
-                    <p className="mt-1">(c) 2026 StockTracker</p>
+                    <p className="mt-1">© 2026 StockTracker</p>
                 </div>
             </footer>
         </div>
+    );
+};
+
+const App: React.FC = () => {
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/" element={<AppContent />} />
+                <Route path="/list/:listId" element={<ListDetailPage />} />
+                <Route path="/share/:shareId" element={<SharedListView />} />
+            </Routes>
+        </BrowserRouter>
     );
 };
 

@@ -7,7 +7,7 @@ const apiClient = axios.create({
 });
 
 export interface ChartDataPoint {
-    time: number; // Unix timestamp in seconds
+    time: number;
     open: number;
     high: number;
     low: number;

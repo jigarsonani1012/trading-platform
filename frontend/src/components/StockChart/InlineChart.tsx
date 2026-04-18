@@ -15,7 +15,6 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    // Determine interval: 1d uses 1-minute candles, others use daily candles
     const interval = ['1d', '1w'].includes(period) ? '1m' : '1d';
     const { data: historicalData, isLoading, error } = useHistoricalData(symbol, period, interval);
 
@@ -40,38 +39,31 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
                         textColor: '#94A3B8',
                         fontSize: 11,
                     },
-
                     width,
                     height,
-
                     handleScroll: {
                         mouseWheel: true,
                         pressedMouseMove: true,
                         horzTouchDrag: true,
                         vertTouchDrag: true,
                     },
-
                     handleScale: {
                         axisPressedMouseMove: true,
                         mouseWheel: true,
                         pinch: true,
                     },
-
                     timeScale: {
                         timeVisible: true,
                         secondsVisible: false,
                     },
-
                     rightPriceScale: {
                         borderColor: '#1E293B',
                     },
-
                     crosshair: {
                         mode: 1,
                         vertLine: { color: '#334155', width: 1 },
                         horzLine: { color: '#334155', width: 1 },
                     },
-
                     grid: {
                         horzLines: { color: '#1E293B' },
                         vertLines: { color: '#1E293B' },
@@ -92,9 +84,7 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
                         ? Math.floor(point.time)
                         : Math.floor(new Date(String(point.time)).getTime() / 1000);
 
-                    // Adjust timestamp to IST (UTC+05:30) by adding 5.5 hours
-                    // This makes the chart display times in IST
-                    const istOffset = 5.5 * 60 * 60; // 5.5 hours in seconds
+                    const istOffset = 5.5 * 60 * 60;
                     timeValue = timeValue + istOffset;
 
                     return {
@@ -183,7 +173,6 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
                 onPointerCancel={() => setIsDragging(false)}
             />
 
-            {/* Fullscreen overlay hint */}
             {!isLoading && historicalData?.length && (
                 <div className="absolute top-3 right-3 opacity-0 hover:opacity-100 transition-opacity z-20">
                     <div className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-md whitespace-nowrap">

@@ -16,7 +16,7 @@ interface StockListsState {
 const DEFAULT_LIST: StockList = {
     id: 'default',
     name: 'My Watchlist',
-    symbols: ['AAPL'],
+    symbols: [],
 };
 
 const createDefaultState = (): StockListsState => ({
@@ -64,15 +64,6 @@ const writeStockListsState = (state: StockListsState) => {
 };
 
 const createListId = () => `list-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-// const formatListName = (name: string) => {
-//     const trimmed = name.trim();
-
-//     if (!trimmed) {
-//         return '';
-//     }
-
-//     return `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
-// };
 
 export const useStock = (symbol: string | null) => {
     return useQuery<StockQuote>({
@@ -132,7 +123,6 @@ export const useStockLists = () => {
     };
 
     const createList = (name: string) => {
-        // Format: First letter uppercase, rest preserved
         const formatted = formatForCreation(name);
 
         if (!formatted) {
@@ -140,7 +130,6 @@ export const useStockLists = () => {
             return null;
         }
 
-        // Validate against existing names
         const existingNames = state.lists.map(l => l.name);
         const validation = validateListName(formatted, existingNames);
 
@@ -245,7 +234,6 @@ export const useStockLists = () => {
     };
 
     const updateListName = (listId: string, newName: string) => {
-        // For edit: Preserve user's exact case, only sanitize
         const formatted = formatForEdit(newName);
 
         if (!formatted) {
@@ -253,12 +241,10 @@ export const useStockLists = () => {
             return false;
         }
 
-        // Get existing names (excluding current list)
         const existingNames = state.lists
             .filter(list => list.id !== listId)
             .map(list => list.name);
 
-        // Validate
         const validation = validateListName(formatted, existingNames);
         if (!validation.isValid) {
             toast.error(validation.error);
@@ -313,9 +299,7 @@ export const useActiveListStocks = () => {
         enabled: !!activeList && activeList.symbols.length > 0,
         staleTime: 20000,
         refetchInterval: 20000,
-        // Only show placeholder data if it's for the same list (same query key)
         placeholderData: (previousData, previousQuery) => {
-            // Only return previous data if the query key matches (same list)
             if (previousQuery && previousQuery.queryKey[1] === activeList?.id) {
                 return previousData;
             }
