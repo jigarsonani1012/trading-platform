@@ -79,9 +79,9 @@ const SharedListView: React.FC = () => {
         <div className="min-h-screen bg-gray-900">
             <div className="container mx-auto px-4 py-8">
                 <div className="flex items-center gap-4 mb-6">
-                    <Link to="/" className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
+                    {/* <Link to="/" className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
                         <ArrowLeft className="w-5 h-5 text-gray-400" />
-                    </Link>
+                    </Link> */}
                     <div>
                         <h1 className="text-3xl font-bold text-white">{list?.listName}</h1>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">

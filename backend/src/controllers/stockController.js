@@ -52,7 +52,6 @@ const getChartData = async (req, res) => {
         const { symbol } = req.params;
         const { range = '1mo', interval = '1d' } = req.query;
         
-        // Validate parameters
         const validRanges = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', 'max'];
         const validIntervals = ['1m', '5m', '15m', '30m', '60m', '1d', '1wk', '1mo'];
         
@@ -72,9 +71,8 @@ const getChartData = async (req, res) => {
         
         const historyData = await yfinanceService.getHistoricalData(symbol, range, interval);
         
-        // Format for TradingView Lightweight Charts
         const chartData = historyData.map(point => ({
-            time: new Date(point.time).getTime() / 1000, // Unix timestamp (required by Lightweight Charts)
+            time: new Date(point.time).getTime() / 1000,
             open: point.open,
             high: point.high,
             low: point.low,
@@ -82,7 +80,6 @@ const getChartData = async (req, res) => {
             volume: point.volume
         }));
         
-        // Also get current quote for live update reference
         const quote = await yfinanceService.getQuote(symbol);
         
         res.json({ 

@@ -1,9 +1,11 @@
+const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const http = require('http');
 const WebSocketStreamServer = require('./websocket/streamServer');
 const stockController = require('./controllers/stockController');
+const mongoose = require('mongoose');
+const shareRoutes = require('./routes/shareRoutes');
 
 dotenv.config();
 
@@ -32,15 +34,19 @@ const corsOptions = {
     },
 };
 
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('✅ MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use('/api', shareRoutes);
 
 app.get('/api/stock/:symbol', stockController.getStock);
 app.get('/api/stock/:symbol/history', stockController.getHistoricalData);
 app.get('/api/stock/:symbol/chart', stockController.getChartData);
 app.get('/api/search', stockController.searchStocks);
 app.post('/api/stocks', stockController.getMultipleStocks);
-// Add this new route after your existing routes
 
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
