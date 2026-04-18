@@ -20,6 +20,7 @@ import type { StockQuote } from '../../types/stock';
 import ValidatedTextInput from '../ValidatedTextInput/ValidatedTextInput';
 import { validateListName, formatForCreation } from '../../utils/textUtils';
 import { WhatsappShareButton, TelegramShareButton, TwitterShareButton, LinkedinShareButton, FacebookShareButton, WhatsappIcon, TelegramIcon, TwitterIcon, LinkedinIcon, FacebookIcon } from 'react-share';
+import { getApiBaseUrl } from '../../config';
 
 interface WatchlistProps {
     onAddMore?: () => void;
@@ -207,12 +208,12 @@ const EditListModal: React.FC<{
     );
 };
 
-interface ListData {
-    id: string;
-    name: string;
-    symbols: string[];
-    type?: 'shared' | 'local';
-}
+// interface ListData {
+//     id: string;
+//     name: string;
+//     symbols: string[];
+//     type?: 'shared' | 'local';
+// }
 
 const Watchlist: React.FC<WatchlistProps> = () => {
     const queryClient = useQueryClient();
@@ -284,7 +285,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
         }
         
         try {
-            const response = await fetch('http://localhost:5000/api/share', {
+            const response = await fetch(`${getApiBaseUrl()}/share`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -467,7 +468,7 @@ const Watchlist: React.FC<WatchlistProps> = () => {
                 </div>
             </div>
 
-            <div className="rounded-[30px] border border-gray-700/70 bg-gradient-to-br from-gray-900/95 via-gray-900/80 to-gray-950/95 p-5 mb-6 shadow-2xl">
+            <div className="rounded-[30px] border border-gray-700/70 bg-linear-to-br from-gray-900/95 via-gray-900/80 to-gray-950/95 p-5 mb-6 shadow-2xl">
                 <div className="flex items-start justify-between gap-6 flex-wrap mb-5">
                     <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-blue-300/70">List Studio</p>

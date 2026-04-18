@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Loader2, AlertCircle, Calendar, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle, Calendar, TrendingUp } from 'lucide-react';
 import StockCard from '../components/StockCard/StockCard';
 import { fetchStock } from '../services/api';
 import type { StockQuote } from '../types/stock';
+import { getApiBaseUrl } from '../config';
 
 interface SharedListData {
     shareId: string;
@@ -24,7 +25,7 @@ const SharedListView: React.FC = () => {
     useEffect(() => {
         const loadSharedList = async () => {
             try {
-                const response = await fetch(`http://localhost:5000/api/share/${shareId}`);
+                const response = await fetch(`${getApiBaseUrl()}/share/${shareId}`);
                 const data = await response.json();
 
                 if (!data.success) {

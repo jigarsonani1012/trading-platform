@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, Loader2, AlertCircle, Share2, Copy, Pencil,
-    TrendingUp, Grid2X2, List, ChevronDown, X
+    TrendingUp, Grid2X2, List, ChevronDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { fetchStock } from '../services/api';
@@ -17,6 +17,7 @@ import {
     LinkedinShareButton, FacebookShareButton, WhatsappIcon,
     TelegramIcon, TwitterIcon, LinkedinIcon, FacebookIcon,
 } from 'react-share';
+import { getApiBaseUrl } from '../config';
 
 interface ListData {
     id: string;
@@ -145,7 +146,7 @@ const ListDetailPage: React.FC = () => {
                     }
                 }
 
-                const response = await fetch(`http://localhost:5000/api/list/${listId}`);
+                const response = await fetch(`${getApiBaseUrl()}/list/${listId}`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -234,7 +235,7 @@ const ListDetailPage: React.FC = () => {
         if (!list) return;
         setIsSharing(true);
         try {
-            const response = await fetch('http://localhost:5000/api/share', {
+            const response = await fetch(`${getApiBaseUrl()}/share`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
