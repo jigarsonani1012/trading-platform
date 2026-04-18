@@ -5,7 +5,7 @@ const http = require('http');
 const WebSocketStreamServer = require('./websocket/streamServer');
 const stockController = require('./controllers/stockController');
 const mongoose = require('mongoose');
-const shareRoutes = require('./routes/shareRoutes.js');
+const sharedRoutes = require('./Routes/sharedRoutes');
 
 dotenv.config();
 
@@ -19,7 +19,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 const corsOptions = {
     origin(origin, callback) {
         if (!origin) {
-            callback(null, true);
+            callback(null, true);   
             return;
         }
 
@@ -40,7 +40,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use('/api', shareRoutes);
+app.use('/api', sharedRoutes)
 
 app.get('/api/stock/:symbol', stockController.getStock);
 app.get('/api/stock/:symbol/history', stockController.getHistoricalData);
