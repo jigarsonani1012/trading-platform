@@ -50,7 +50,6 @@ const sharedListSchema = new mongoose.Schema({
     },
 });
 
-sharedListSchema.index({ shareId: 1 });
 sharedListSchema.index({ createdAt: -1 });
 sharedListSchema.index({ originalListId: 1 });
 
