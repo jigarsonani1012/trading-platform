@@ -30,6 +30,20 @@ const sharedListSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    description: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: 200,
+    },
+    views: {
+        type: Number,
+        default: 0,
+    },
+    expiresAt: {
+        type: Date,
+        default: null,
+    },
     createdAt: {
         type: Date,
         default: Date.now,

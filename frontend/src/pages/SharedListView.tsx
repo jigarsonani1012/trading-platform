@@ -2,18 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Loader2, AlertCircle, Calendar, TrendingUp } from 'lucide-react';
 import StockCard from '../components/StockCard/StockCard';
-import { fetchStock } from '../services/api';
+import AppFooter from '../components/shared/AppFooter';
+import { usePageMeta } from '../hooks/usePageMeta';
+import { fetchSharedList, fetchStock } from '../services/api';
 import type { StockQuote } from '../types/stock';
-import { getApiBaseUrl } from '../config';
+import { logger } from '../utils/logger';
 
-interface SharedListData {
+type SharedListData = {
     shareId: string;
     listName: string;
     symbols: string[];
     description: string;
     createdAt: string;
     views: number;
-}
+};
 
 const SharedListView: React.FC = () => {
     const { shareId } = useParams<{ shareId: string }>();
@@ -21,17 +23,17 @@ const SharedListView: React.FC = () => {
     const [stocks, setStocks] = useState<StockQuote[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    usePageMeta({
+        title: list ? `${list.listName} Shared List` : 'Shared Watchlist',
+        description: list
+            ? `Open the shared watchlist ${list.listName} and review its tracked instruments.`
+            : 'Open a shared watchlist and review its tracked instruments.',
+    });
 
     useEffect(() => {
         const loadSharedList = async () => {
             try {
-                const response = await fetch(`${getApiBaseUrl()}/share/${shareId}`);
-                const data = await response.json();
-
-                if (!data.success) {
-                    setError(data.error);
-                    return;
-                }
+                const data = await fetchSharedList(shareId!);
 
                 setList(data.list);
 
@@ -39,9 +41,9 @@ const SharedListView: React.FC = () => {
                     fetchStock(symbol).catch(() => null)
                 );
                 const stockResults = await Promise.all(stockPromises);
-                setStocks(stockResults.filter((s): s is StockQuote => s !== null));
+                setStocks(stockResults.filter((stock): stock is StockQuote => stock !== null));
             } catch (err) {
-                console.error('Error loading shared list:', err);
+                logger.error('Error loading shared list', err);
                 setError('Failed to load shared list');
             } finally {
                 setLoading(false);
@@ -79,13 +81,10 @@ const SharedListView: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-900">
             <div className="container mx-auto px-4 py-8">
-                <div className="flex items-center gap-4 mb-6">
-                    {/* <Link to="/" className="p-2 rounded-lg hover:bg-gray-800 transition-colors">
-                        <ArrowLeft className="w-5 h-5 text-gray-400" />
-                    </Link> */}
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div>
                         <h1 className="text-3xl font-bold text-white">{list?.listName}</h1>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-400">
+                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <div className="flex items-center gap-1">
                                 <Calendar className="w-4 h-4" />
                                 <span>Created {new Date(list?.createdAt || '').toLocaleDateString()}</span>
@@ -100,7 +99,7 @@ const SharedListView: React.FC = () => {
 
                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6 text-center">
                     <p className="text-blue-400 text-sm">
-                        📋 Someone shared this watchlist with you. Prices update in real-time.
+                        Someone shared this watchlist with you. Prices update in real time.
                     </p>
                 </div>
 
@@ -121,6 +120,7 @@ const SharedListView: React.FC = () => {
                     </div>
                 )}
             </div>
+            <AppFooter message="Shared market data is displayed from Yahoo Finance quote endpoints." />
         </div>
     );
 };

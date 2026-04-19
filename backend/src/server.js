@@ -2,24 +2,24 @@ const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const path = require('path');
+const mongoose = require('mongoose');
 const WebSocketStreamServer = require('./websocket/streamServer');
 const stockController = require('./controllers/stockController');
-const mongoose = require('mongoose');
 const sharedRoutes = require('./Routes/sharedRoutes');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const { config } = require('./config');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+const PORT = config.port;
+const allowedOrigins = config.allowedOrigins;
 
 const corsOptions = {
     origin(origin, callback) {
         if (!origin) {
-            callback(null, true);   
+            callback(null, true);
             return;
         }
 
@@ -34,13 +34,31 @@ const corsOptions = {
     },
 };
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch(err => console.error('MongoDB connection error:', err));
+const connectToMongo = async () => {
+    if (!config.mongodbUri) {
+        console.warn('MongoDB URI not configured. Share features will be unavailable.');
+        return;
+    }
 
+    try {
+        await mongoose.connect(config.mongodbUri);
+        console.log('MongoDB connected');
+    } catch (error) {
+        console.error('MongoDB connection error:', error.message);
+    }
+};
+
+app.disable('x-powered-by');
 app.use(cors(corsOptions));
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+});
 app.use(express.json());
-app.use('/api', sharedRoutes)
+app.use('/api', sharedRoutes);
 
 app.get('/api/stock/:symbol', stockController.getStock);
 app.get('/api/stock/:symbol/history', stockController.getHistoricalData);
@@ -53,18 +71,26 @@ app.get('/health', (req, res) => {
 });
 
 const server = http.createServer(app);
-
-server.listen(PORT, () => {
-    console.log(`HTTP server running on http://localhost:${PORT}`);
-    console.log(`Health: http://localhost:${PORT}/health`);
-    console.log(`Example: http://localhost:${PORT}/api/stock/TCS`);
-    console.log(`WebSocket: ws://localhost:${PORT}/ws`);
-    console.log(
-        allowedOrigins.length > 0
-            ? `CORS origins: ${allowedOrigins.join(', ')}`
-            : 'CORS origins: localhost/127.0.0.1 only (set ALLOWED_ORIGINS in production)'
-    );
-});
-
 const wsServer = new WebSocketStreamServer(server, '/ws');
-wsServer.start();
+
+const startServer = async () => {
+    await connectToMongo();
+    wsServer.start();
+
+    server.listen(PORT, () => {
+        console.log(`HTTP server listening on port ${PORT}`);
+        console.log(`Frontend URL: ${config.frontendUrl}`);
+        console.log(`Health endpoint: /health`);
+        console.log(
+            allowedOrigins.length > 0
+                ? `CORS origins: ${allowedOrigins.join(', ')}`
+                : 'CORS origins: localhost/127.0.0.1 only (set ALLOWED_ORIGINS before production)'
+        );
+    });
+};
+
+if (require.main === module) {
+    startServer();
+}
+
+module.exports = { app, server, startServer };

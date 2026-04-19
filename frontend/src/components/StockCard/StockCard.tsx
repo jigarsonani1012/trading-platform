@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, memo, useMemo, useState } from 'react';
 import { Activity, BarChart3, TrendingDown, TrendingUp, X } from 'lucide-react';
 import type { StockQuote } from '../../types/stock';
 import { LineChart as LineChartIcon } from 'lucide-react';
-import ChartModal from '../StockChart/ChartModal';
-import InlineChart from '../StockChart/InlineChart';
+
+const ChartModal = lazy(() => import('../StockChart/ChartModal'));
 
 interface StockCardProps {
     stock: StockQuote;
@@ -11,23 +11,54 @@ interface StockCardProps {
     viewMode: 'grid' | 'list';
 }
 
-const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
-    const [showChart, setShowChart] = useState(false);
+const currencyFormatters = new Map<string, Intl.NumberFormat>();
+const compactFormatters = new Map<string, Intl.NumberFormat>();
+
+const getCurrencyFormatter = (currency: string) => {
+    const normalizedCurrency = currency || 'INR';
+
+    if (!currencyFormatters.has(normalizedCurrency)) {
+        currencyFormatters.set(
+            normalizedCurrency,
+            new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: normalizedCurrency,
+                maximumFractionDigits: 2,
+            })
+        );
+    }
+
+    return currencyFormatters.get(normalizedCurrency)!;
+};
+
+const getCompactFormatter = (locale: string) => {
+    if (!compactFormatters.has(locale)) {
+        compactFormatters.set(
+            locale,
+            new Intl.NumberFormat(locale, {
+                notation: 'compact',
+                maximumFractionDigits: 2,
+            })
+        );
+    }
+
+    return compactFormatters.get(locale)!;
+};
+
+const StockCardComponent: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
     const [showModal, setShowModal] = useState(false);
 
     const isPositive = stock.percent_change >= 0;
     const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+    const currencyFormatter = useMemo(() => getCurrencyFormatter(stock.currency || 'INR'), [stock.currency]);
+    const compactFormatter = useMemo(() => getCompactFormatter('en-IN'), []);
 
     const formatCurrency = (num: number | null | undefined): string => {
         if (num === null || num === undefined || Number.isNaN(num)) {
             return 'N/A';
         }
 
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: stock.currency || 'INR',
-            maximumFractionDigits: 2,
-        }).format(num);
+        return currencyFormatter.format(num);
     };
 
     const formatVolume = (volume: number | null | undefined): string => {
@@ -35,10 +66,7 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
             return 'N/A';
         }
 
-        return new Intl.NumberFormat('en-IN', {
-            notation: 'compact',
-            maximumFractionDigits: 2,
-        }).format(volume);
+        return compactFormatter.format(volume);
     };
 
     const exchangeLabel = stock.exchange === 'BSE' || stock.ticker?.includes('.BO') ? 'BSE' : 'NSE';
@@ -94,13 +122,11 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
                     </button>
                 </div>
 
-                {showChart && (
-                    <div className="mt-4 pt-4 border-t border-gray-700 animate-slide-up">
-                        <InlineChart symbol={stock.symbol} height={200} />
-                    </div>
+                {showModal && (
+                    <Suspense fallback={null}>
+                        <ChartModal stock={stock} isOpen={showModal} onClose={() => setShowModal(false)} />
+                    </Suspense>
                 )}
-
-                <ChartModal stock={stock} isOpen={showModal} onClose={() => setShowModal(false)} />
             </div>
         );
     }
@@ -173,21 +199,6 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
                 </div>
             </div>
 
-            {showChart && (
-                <div className="mb-4 animate-slide-up">
-                    <InlineChart symbol={stock.symbol} height={250} />
-                </div>
-            )}
-
-            {showChart && (
-                <button
-                    onClick={() => setShowChart(false)}
-                    className="mb-4 w-full py-2 px-3 bg-gray-800/50 hover:bg-gray-800 text-gray-300 rounded-lg text-sm transition-colors"
-                >
-                    Hide Inline Chart
-                </button>
-            )}
-
             <div className="flex items-center justify-between pt-3 border-t border-gray-700/50 gap-3 mt-auto">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                     <Activity className="w-3 h-3" />
@@ -199,9 +210,15 @@ const StockCard: React.FC<StockCardProps> = ({ stock, onRemove, viewMode }) => {
                 </div>
             </div>
 
-            <ChartModal stock={stock} isOpen={showModal} onClose={() => setShowModal(false)} />
+            {showModal && (
+                <Suspense fallback={null}>
+                    <ChartModal stock={stock} isOpen={showModal} onClose={() => setShowModal(false)} />
+                </Suspense>
+            )}
         </div>
     );
 };
+
+const StockCard = memo(StockCardComponent);
 
 export default StockCard;

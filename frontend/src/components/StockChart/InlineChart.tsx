@@ -3,6 +3,7 @@ import { createChart, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi, Time } from 'lightweight-charts';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useHistoricalData } from '../../hooks/useStockData';
+import { logger } from '../../utils/logger';
 
 interface InlineChartProps {
     symbol: string;
@@ -119,7 +120,7 @@ const InlineChart: React.FC<InlineChartProps> = ({ symbol, height = 250, period 
                     resizeObserver.disconnect();
                 };
             } catch (err) {
-                console.error('Error initializing inline chart:', err);
+                logger.error('Error initializing inline chart', err);
             }
         };
 
