@@ -22,7 +22,6 @@ class WebSocketStreamServer {
         this.startPolling();
 
         this.wss.on('connection', (ws) => {
-            console.log('Client connected');
             ws.isAlive = true;
             this.clientSubscriptions.set(ws, new Set());
 

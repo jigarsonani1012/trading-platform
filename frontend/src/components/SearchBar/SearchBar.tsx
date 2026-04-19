@@ -126,8 +126,12 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                 </div>
 
                 <div className="relative">
+                    <label htmlFor="market-search" className="sr-only">
+                        Search for a stock, mutual fund, SIP, or index
+                    </label>
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 z-10" />
                     <input
+                        id="market-search"
                         type="text"
                         value={searchTerm}
                         onChange={(event) => {
@@ -142,6 +146,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                                 setIsOpen(true);
                             }
                         }}
+                        role="combobox"
+                        aria-expanded={isOpen}
+                        aria-controls="market-search-results"
+                        aria-autocomplete="list"
                         disabled={disabled}
                         placeholder={
                             disabled
@@ -157,7 +165,11 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
             </div>
 
             {isOpen && !disabled && searchTerm.trim().length >= 2 && (
-                <div className="absolute z-50 w-full mt-2 bg-gray-800/95 backdrop-blur-md border border-gray-700 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
+                <div
+                    id="market-search-results"
+                    role="listbox"
+                    className="absolute z-50 w-full mt-2 bg-gray-800/95 backdrop-blur-md border border-gray-700 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"
+                >
                     {error && (
                         <div className="p-6 text-center text-red-400">
                             <p>Search failed. Please try again.</p>
@@ -184,7 +196,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ activeListName, onSelectResult, d
                                 return (
                                     <button
                                         key={`${result.symbol}-${result.category}-${index}`}
+                                        type="button"
                                         onClick={() => handleSelect(result)}
+                                        role="option"
+                                        aria-label={`Add ${result.symbol} to ${activeListName}`}
                                         className="cursor-pointer w-full text-left px-4 py-3 hover:bg-gray-700/40 transition-colors border-b border-gray-700/40 last:border-0 group"
                                     >
                                         <div className="flex items-center justify-between gap-4">

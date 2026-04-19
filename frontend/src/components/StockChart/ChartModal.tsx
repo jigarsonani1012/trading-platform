@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { IChartApi, Time, ISeriesApi, MouseEventParams } from 'lightweight-charts';
 import {
@@ -47,18 +47,24 @@ interface MeasurementResult {
     timeDuration: string;
 }
 
+interface MeasurementOverlayState {
+    startScreen: { x: number; y: number } | null;
+    endScreen: { x: number; y: number } | null;
+    chartWidth: number;
+}
+
 const annotationConfig: Record<AnnotationType, { icon: React.ReactNode; label: string; defaultText: string; color: string }> = {
     text: { icon: <Type size={14} />, label: 'Text', defaultText: 'Text', color: '#3B82F6' },
     note: { icon: <StickyNote size={14} />, label: 'Note', defaultText: 'Note', color: '#10B981' },
-    priceNote: { icon: <Tag size={14} />, label: 'Price Note', defaultText: 'Price: ₹0.00', color: '#F59E0B' },
+    priceNote: { icon: <Tag size={14} />, label: 'Price Note', defaultText: 'Price: Rs 0.00', color: '#F59E0B' },
     callout: { icon: <MessageSquare size={14} />, label: 'Callout', defaultText: 'Important!', color: '#EF4444' },
     comment: { icon: <MessageSquare size={14} />, label: 'Comment', defaultText: 'Comment', color: '#8B5CF6' },
-    priceLabel: { icon: <Hash size={14} />, label: 'Price Label', defaultText: '₹0.00', color: '#06B6D4' },
+    priceLabel: { icon: <Hash size={14} />, label: 'Price Label', defaultText: 'Rs 0.00', color: '#06B6D4' },
     pin: { icon: <Pin size={14} />, label: 'Pin', defaultText: 'Pinned', color: '#EC4899' },
     flag: { icon: <Flag size={14} />, label: 'Flag', defaultText: 'Flag', color: '#F97316' },
     signpost: { icon: <MapPin size={14} />, label: 'Signpost', defaultText: 'Sign', color: '#14B8A6' },
     flagMark: { icon: <Flag size={14} />, label: 'Flag Mark', defaultText: 'Alert', color: '#DC2626' },
-    image: { icon: <ImageIcon size={14} />, label: 'Image', defaultText: '📷 Image', color: '#A855F7' },
+    image: { icon: <ImageIcon size={14} />, label: 'Image', defaultText: 'Image', color: '#A855F7' },
     post: { icon: <FileText size={14} />, label: 'Post', defaultText: 'Post', color: '#3B82F6' },
     idea: { icon: <Lightbulb size={14} />, label: 'Idea', defaultText: 'Idea', color: '#EAB308' },
     table: { icon: <Table size={14} />, label: 'Table', defaultText: 'Table data', color: '#6B7280' },
@@ -88,7 +94,7 @@ const formatTimeDuration = (startTime: number, endTime: number): string => {
     return `${diffSeconds}s`;
 };
 
-const formatCurrency = (value: number) => `₹${value.toFixed(2)}`;
+const formatCurrency = (value: number) => `Rs ${value.toFixed(2)}`;
 
 const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
 
@@ -99,6 +105,8 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
     const isMeasuringRef = useRef(false);
     const selectedToolRef = useRef<string | null>(null);
     const measurementStartRef = useRef<MeasurementPoint | null>(null);
+    const measurementPreviewRef = useRef<MeasurementPoint | null>(null);
+    const measurementEndRef = useRef<MeasurementPoint | null>(null);
 
     // Annotations state
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -113,6 +121,11 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
     const [measurementPreview, setMeasurementPreview] = useState<MeasurementPoint | null>(null);
     const [measurementEnd, setMeasurementEnd] = useState<MeasurementPoint | null>(null);
     const [measurementResult, setMeasurementResult] = useState<MeasurementResult | null>(null);
+    const [measurementOverlay, setMeasurementOverlay] = useState<MeasurementOverlayState>({
+        startScreen: null,
+        endScreen: null,
+        chartWidth: 0,
+    });
 
     const [period, setPeriod] = useState<TimePeriod>('1d');
     const [isDragging, setIsDragging] = useState(false);
@@ -235,7 +248,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
         }));
     }, []);
 
-    const addAnnotation = (type: AnnotationType, time: Time, price: number) => {
+    const addAnnotation = useCallback((type: AnnotationType, time: Time, price: number) => {
         const config = annotationConfig[type];
         let defaultText = config.defaultText;
 
@@ -258,7 +271,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
         setTextInputValue(defaultText);
         setTimeout(() => textInputRef.current?.focus(), 100);
         setTimeout(() => updateAnnotationCoordinates(), 50);
-    };
+    }, [updateAnnotationCoordinates]);
 
     const updateAnnotation = (id: string, newText: string) => {
         setAnnotations(prev => prev.map(ann =>
@@ -332,6 +345,27 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
         setIsDarkMode(newMode);
         setGlobalDarkMode(newMode);
     };
+
+    const syncMeasurementOverlay = useCallback(() => {
+        const measurementTarget = measurementEndRef.current ?? measurementPreviewRef.current;
+        const startScreen = measurementStartRef.current ? getScreenPoint(measurementStartRef.current) : null;
+        const endScreen = measurementTarget ? getScreenPoint(measurementTarget) : null;
+        const chartWidth = chartContainerRef.current?.clientWidth ?? 0;
+
+        setMeasurementOverlay((current) => {
+            if (
+                current.chartWidth === chartWidth &&
+                current.startScreen?.x === startScreen?.x &&
+                current.startScreen?.y === startScreen?.y &&
+                current.endScreen?.x === endScreen?.x &&
+                current.endScreen?.y === endScreen?.y
+            ) {
+                return current;
+            }
+
+            return { startScreen, endScreen, chartWidth };
+        });
+    }, []);
 
     // CHART INIT / UPDATE     
     useEffect(() => {
@@ -492,10 +526,14 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
 
             chart.timeScale().subscribeVisibleTimeRangeChange(() => {
                 updateAnnotationCoordinates();
+                syncMeasurementOverlay();
             });
 
             chartRef.current = chart;
-            setTimeout(() => updateAnnotationCoordinates(), 100);
+            setTimeout(() => {
+                updateAnnotationCoordinates();
+                syncMeasurementOverlay();
+            }, 100);
         };
 
         const resize = () => {
@@ -505,6 +543,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
             if (w > 0 && h > 0) {
                 chartRef.current.applyOptions({ width: w, height: h });
                 updateAnnotationCoordinates();
+                syncMeasurementOverlay();
             }
         };
 
@@ -521,7 +560,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
             }
             candlestickSeriesRef.current = null;
         };
-    }, [isOpen, historicalData, isDarkMode, smaEnabled, createMeasurementPoint, buildMeasurementResult, updateAnnotationCoordinates]);
+    }, [isOpen, historicalData, isDarkMode, smaEnabled, createMeasurementPoint, buildMeasurementResult, updateAnnotationCoordinates, addAnnotation, syncMeasurementOverlay]);
 
     useEffect(() => {
         isMeasuringRef.current = isMeasuring;
@@ -530,6 +569,16 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
     useEffect(() => {
         selectedToolRef.current = selectedTool;
     }, [selectedTool]);
+
+    useEffect(() => {
+        measurementStartRef.current = measurementStart;
+        measurementPreviewRef.current = measurementPreview;
+        measurementEndRef.current = measurementEnd;
+
+        if (isOpen) {
+            syncMeasurementOverlay();
+        }
+    }, [isOpen, measurementStart, measurementPreview, measurementEnd, syncMeasurementOverlay]);
 
     useEffect(() => {
         if (chartRef.current && annotations.length > 0) {
@@ -571,12 +620,8 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
     };
 
     const measurementTarget = measurementEnd ?? measurementPreview;
-
-    const startScreen = measurementStart ? getScreenPoint(measurementStart) : null;
-    const endScreen = measurementTarget ? getScreenPoint(measurementTarget) : null;
-
+    const { startScreen, endScreen, chartWidth } = measurementOverlay;
     const hasScreenPoints = !!(startScreen && endScreen);
-    const chartWidth = chartContainerRef.current?.clientWidth ?? 0;
     const measurementTone = measurementResult && measurementResult.priceDiff >= 0
         ? {
             solid: '#16a34a',
@@ -601,7 +646,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
                     <div>
                         <h2 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{stock.symbol}</h2>
                         <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{stock.company_name}</p>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>🕐 {indianTime}</p>
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>Time {indianTime}</p>
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -901,13 +946,13 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
                     {/* MEASUREMENT INSTRUCTIONS */}
                     {isMeasuring && !measurementStart && (
                         <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 rounded-lg shadow-lg ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>
-                            <div className="text-sm font-medium">📍 Click start point</div>
+                            <div className="text-sm font-medium">Click start point</div>
                         </div>
                     )}
 
                     {isMeasuring && measurementStart && !measurementEnd && (
                         <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-30 px-4 py-2 rounded-lg shadow-lg ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>
-                            <div className="text-sm font-medium">📍 Click end point</div>
+                            <div className="text-sm font-medium">Click end point</div>
                         </div>
                     )}
 
@@ -916,10 +961,10 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
                         <div className={`absolute top-4 left-4 z-30 p-3 rounded-lg shadow-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-300'}`}>
                             <div className={`text-xs font-mono ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                                 <div className="flex gap-3 items-center flex-wrap">
-                                    <div>O: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>₹{ohlc.open.toFixed(2)}</span></div>
-                                    <div>H: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>₹{ohlc.high.toFixed(2)}</span></div>
-                                    <div>L: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>₹{ohlc.low.toFixed(2)}</span></div>
-                                    <div>C: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>₹{ohlc.close.toFixed(2)}</span></div>
+                                    <div>O: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>Rs {ohlc.open.toFixed(2)}</span></div>
+                                    <div>H: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>Rs {ohlc.high.toFixed(2)}</span></div>
+                                    <div>L: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>Rs {ohlc.low.toFixed(2)}</span></div>
+                                    <div>C: <span className={`font-bold ${ohlc.close >= ohlc.open ? 'text-green-500' : 'text-red-500'}`}>Rs {ohlc.close.toFixed(2)}</span></div>
                                 </div>
                             </div>
                         </div>
@@ -979,7 +1024,7 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
                     {/* TOOL STATUS */}
                     {smaEnabled && (
                         <div className={`absolute top-4 right-4 z-30 px-3 py-1 rounded text-xs font-medium ${isDarkMode ? 'bg-orange-600 text-white' : 'bg-orange-500 text-white'}`}>
-                            📈 SMA(20) Active
+                            SMA(20) Active
                         </div>
                     )}
 
@@ -1000,12 +1045,12 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
                 <div className={`px-8 py-5 border-t grid grid-cols-4 gap-6 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
                     <div>
                         <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Price</p>
-                        <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>₹{stock.last_price?.toFixed(2) || 'N/A'}</p>
+                        <p className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Rs {stock.last_price?.toFixed(2) || 'N/A'}</p>
                     </div>
                     <div>
                         <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Change</p>
                         <p className={`text-2xl font-bold ${(stock.change || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {(stock.change || 0) >= 0 ? '+' : ''}₹{stock.change?.toFixed(2)}
+                            {(stock.change || 0) >= 0 ? '+' : ''}Rs {stock.change?.toFixed(2)}
                         </p>
                     </div>
                     <div>
@@ -1028,3 +1073,4 @@ const ChartModal: React.FC<ChartModalProps> = ({ stock, isOpen, onClose }) => {
 };
 
 export default ChartModal;
+

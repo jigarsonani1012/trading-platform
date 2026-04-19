@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getWebSocketUrl } from '../config';
 import type { StockQuote } from '../types/stock';
 
@@ -8,94 +8,159 @@ interface UseWebSocketOptions {
     onDisconnected?: () => void;
 }
 
-export const useWebSocket = (options: UseWebSocketOptions = {}) => {
-    const [isConnected, setIsConnected] = useState(false);
-    const wsRef = useRef<WebSocket | null>(null);
-    const reconnectTimeoutRef = useRef<number | null>(null);
-    const subscriptionsRef = useRef<Set<string>>(new Set());
-    const optionsRef = useRef(options);
+type PriceListener = (symbol: string, data: StockQuote) => void;
+type ConnectionListener = (isConnected: boolean) => void;
 
-    useEffect(() => {
-        optionsRef.current = options;
-    }, [options]);
+class WebSocketManager {
+    private ws: WebSocket | null = null;
+    private subscriptionCounts = new Map<string, number>();
+    private priceListeners = new Set<PriceListener>();
+    private connectionListeners = new Set<ConnectionListener>();
+    private isConnected = false;
+    private shouldReconnect = true;
 
-    useEffect(() => {
-        let isUnmounted = false;
+    connect() {
+        if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
 
-        const connect = () => {
-            const ws = new WebSocket(getWebSocketUrl());
-            wsRef.current = ws;
+        this.shouldReconnect = true;
+        this.ws = new WebSocket(getWebSocketUrl());
 
-            ws.onopen = () => {
-                if (isUnmounted) {
-                    return;
-                }
+        this.ws.onopen = () => {
+            this.isConnected = true;
+            this.emitConnection();
 
-                setIsConnected(true);
-                optionsRef.current.onConnected?.();
+            this.subscriptionCounts.forEach((_count, symbol) => {
+                this.ws?.send(JSON.stringify({ action: 'subscribe', symbol }));
+            });
+        };
 
-                subscriptionsRef.current.forEach((symbol) => {
-                    ws.send(JSON.stringify({ action: 'subscribe', symbol }));
+        this.ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'price' && message.data) {
+                this.priceListeners.forEach((listener) => {
+                    listener(message.symbol, message.data);
                 });
-            };
-
-            ws.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-
-                if (message.type === 'price' && message.data) {
-                    optionsRef.current.onPriceUpdate?.(message.symbol, message.data);
-                }
-            };
-
-            ws.onclose = () => {
-                if (isUnmounted) {
-                    return;
-                }
-
-                setIsConnected(false);
-                optionsRef.current.onDisconnected?.();
-                reconnectTimeoutRef.current = window.setTimeout(connect, 3000);
-            };
-        };
-
-        connect();
-
-        return () => {
-            isUnmounted = true;
-
-            if (reconnectTimeoutRef.current !== null) {
-                window.clearTimeout(reconnectTimeoutRef.current);
-            }
-
-            if (wsRef.current) {
-                wsRef.current.close();
-                wsRef.current = null;
             }
         };
-    }, []);
 
-    const subscribe = useCallback((symbol: string) => {
+        this.ws.onclose = () => {
+            this.isConnected = false;
+            this.emitConnection();
+            this.ws = null;
+
+            if (this.shouldReconnect) {
+                window.setTimeout(() => this.connect(), 3000);
+            }
+        };
+    }
+
+    subscribe(symbol: string) {
         const normalized = symbol.trim().toUpperCase();
-
         if (!normalized) {
             return;
         }
 
-        subscriptionsRef.current.add(normalized);
+        const currentCount = this.subscriptionCounts.get(normalized) ?? 0;
+        this.subscriptionCounts.set(normalized, currentCount + 1);
+        this.connect();
 
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ action: 'subscribe', symbol: normalized }));
+        if (currentCount === 0 && this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ action: 'subscribe', symbol: normalized }));
         }
-    }, []);
+    }
 
-    const unsubscribe = useCallback((symbol: string) => {
+    unsubscribe(symbol: string) {
         const normalized = symbol.trim().toUpperCase();
-        subscriptionsRef.current.delete(normalized);
-
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ action: 'unsubscribe', symbol: normalized }));
+        if (!normalized) {
+            return;
         }
+
+        const currentCount = this.subscriptionCounts.get(normalized) ?? 0;
+
+        if (currentCount <= 1) {
+            this.subscriptionCounts.delete(normalized);
+
+            if (this.ws?.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ action: 'unsubscribe', symbol: normalized }));
+            }
+
+            return;
+        }
+
+        this.subscriptionCounts.set(normalized, currentCount - 1);
+    }
+
+    addPriceListener(listener: PriceListener) {
+        this.priceListeners.add(listener);
+        this.connect();
+
+        return () => {
+            this.priceListeners.delete(listener);
+        };
+    }
+
+    addConnectionListener(listener: ConnectionListener) {
+        this.connectionListeners.add(listener);
+        listener(this.isConnected);
+        this.connect();
+
+        return () => {
+            this.connectionListeners.delete(listener);
+        };
+    }
+
+    getConnectionState() {
+        return this.isConnected;
+    }
+
+    private emitConnection() {
+        this.connectionListeners.forEach((listener) => {
+            listener(this.isConnected);
+        });
+    }
+}
+
+const sharedWebSocketManager = new WebSocketManager();
+
+export const useWebSocket = (options: UseWebSocketOptions = {}) => {
+    const [isConnected, setIsConnected] = useState(sharedWebSocketManager.getConnectionState());
+    const { onPriceUpdate, onConnected, onDisconnected } = options;
+    const callbacksRef = useRef<UseWebSocketOptions>(options);
+
+    useEffect(() => {
+        callbacksRef.current = { onPriceUpdate, onConnected, onDisconnected };
+    }, [onPriceUpdate, onConnected, onDisconnected]);
+
+    useEffect(() => {
+        const removePriceListener = sharedWebSocketManager.addPriceListener((symbol, data) => {
+            callbacksRef.current.onPriceUpdate?.(symbol, data);
+        });
+
+        const removeConnectionListener = sharedWebSocketManager.addConnectionListener((nextConnected) => {
+            setIsConnected((current) => (current === nextConnected ? current : nextConnected));
+
+            if (nextConnected) {
+                callbacksRef.current.onConnected?.();
+            } else {
+                callbacksRef.current.onDisconnected?.();
+            }
+        });
+
+        return () => {
+            removePriceListener();
+            removeConnectionListener();
+        };
     }, []);
 
-    return { isConnected, subscribe, unsubscribe };
+    return useMemo(
+        () => ({
+            isConnected,
+            subscribe: (symbol: string) => sharedWebSocketManager.subscribe(symbol),
+            unsubscribe: (symbol: string) => sharedWebSocketManager.unsubscribe(symbol),
+        }),
+        [isConnected]
+    );
 };

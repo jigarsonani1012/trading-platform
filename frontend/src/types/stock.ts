@@ -41,6 +41,9 @@ export interface StockList {
     id: string;
     name: string;
     symbols: string[];
+    userId?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface WebSocketMessage {
